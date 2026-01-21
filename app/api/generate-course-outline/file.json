@@ -1,0 +1,107 @@
+{
+  "company": "Flipkart",
+  "interview_level": "Moderate",
+  "course_title": "Cracking the Flipkart Interview 🚀",
+  "course_summary": "This course prepares candidates for a moderate-level interview at Flipkart, focusing on technical skills, problem-solving, and cultural fit. It covers data structures, algorithms, system design, and behavioral questions, tailored to Flipkart's engineering challenges. Expect questions related to e-commerce platforms, scalability, and real-world problem-solving. 🛒",
+  "chapters": [
+    {
+      "chapter_number": 1,
+      "chapter_title": "Data Structures and Algorithms Fundamentals 📊",
+      "chapter_summary": "This chapter reviews essential data structures (arrays, linked lists, stacks, queues, trees, graphs) and algorithms (searching, sorting, recursion, dynamic programming). Focus is on choosing appropriate data structures and algorithms for specific problems and analyzing their time and space complexity. 🧑‍💻",
+      "emoji": "📊",
+      "topics": {
+        "1.1": "Arrays and Strings",
+        "1.2": "Linked Lists",
+        "1.3": "Stacks and Queues",
+        "1.4": "Trees (Binary Trees, BSTs)",
+        "1.5": "Graphs (BFS, DFS)",
+        "1.6": "Sorting Algorithms (Merge Sort, Quick Sort, Heap Sort)",
+        "1.7": "Searching Algorithms (Binary Search)",
+        "1.8": "Recursion and Backtracking",
+        "1.9": "Dynamic Programming (Basic Concepts)"
+      }
+    },
+    {
+      "chapter_number": 2,
+      "chapter_title": "Object-Oriented Programming (OOP) and Design Patterns 💡",
+      "chapter_summary": "This chapter covers OOP principles (encapsulation, inheritance, polymorphism, abstraction) and common design patterns (Singleton, Factory, Observer). Understanding how to apply these concepts to design scalable and maintainable software is crucial. 🛠️",
+      "emoji": "💡",
+      "topics": {
+        "2.1": "OOP Principles (Encapsulation, Inheritance, Polymorphism, Abstraction)",
+        "2.2": "Design Patterns (Singleton, Factory, Observer, Strategy)",
+        "2.3": "SOLID Principles",
+        "2.4": "UML Diagrams (Basic Understanding)",
+        "2.5": "Object-Oriented Design Best Practices"
+      }
+    },
+    {
+      "chapter_number": 3,
+      "chapter_title": "System Design Basics ⚙️",
+      "chapter_summary": "This chapter introduces system design concepts relevant to Flipkart's scale. It covers topics like load balancing, caching, databases, and distributed systems. Focus is on understanding trade-offs and making informed design decisions. 🌐",
+      "emoji": "⚙️",
+      "topics": {
+        "3.1": "Scalability (Horizontal vs. Vertical)",
+        "3.2": "Load Balancing",
+        "3.3": "Caching Strategies (CDN, In-Memory Cache)",
+        "3.4": "Databases (SQL vs. NoSQL)",
+        "3.5": "CAP Theorem",
+        "3.6": "Microservices Architecture (Introduction)"
+      }
+    },
+    {
+      "chapter_number": 4,
+      "chapter_title": "Database Concepts and SQL 💽",
+      "chapter_summary": "This chapter covers database fundamentals, including relational database design, SQL queries, and database optimization techniques. Expect questions about schema design, indexing, and query performance. 🔑",
+      "emoji": "💽",
+      "topics": {
+        "4.1": "Relational Database Concepts",
+        "4.2": "SQL Queries (SELECT, INSERT, UPDATE, DELETE, JOIN)",
+        "4.3": "Database Schema Design",
+        "4.4": "Indexing",
+        "4.5": "Database Transactions and ACID Properties",
+        "4.6": "SQL Optimization Techniques"
+      }
+    },
+    {
+      "chapter_number": 5,
+      "chapter_title": "Coding Problems and Problem-Solving 💻",
+      "chapter_summary": "This chapter focuses on practicing coding problems related to data structures and algorithms. The goal is to improve problem-solving skills and the ability to write clean, efficient, and well-documented code. 💡",
+      "emoji": "💻",
+      "topics": {
+        "5.1": "String Manipulation Problems",
+        "5.2": "Array-Based Problems",
+        "5.3": "Linked List Problems",
+        "5.4": "Tree and Graph Traversal Problems",
+        "5.5": "Dynamic Programming Problems",
+        "5.6": "Greedy Algorithms",
+        "5.7": "Time and Space Complexity Analysis"
+      }
+    },
+    {
+      "chapter_number": 6,
+      "chapter_title": "Behavioral Questions and Flipkart Culture 🙌",
+      "chapter_summary": "This chapter prepares candidates for behavioral questions and assesses cultural fit. It covers topics like teamwork, problem-solving under pressure, leadership, and alignment with Flipkart's values. 🤝",
+      "emoji": "🙌",
+      "topics": {
+        "6.1": "Tell Me About Yourself",
+        "6.2": "Strengths and Weaknesses",
+        "6.3": "Why Flipkart?",
+        "6.4": "Teamwork and Collaboration",
+        "6.5": "Conflict Resolution",
+        "6.6": "Problem-Solving under Pressure",
+        "6.7": "Leadership Experience",
+        "6.8": "Questions to Ask the Interviewer"
+      }
+    }
+  ],
+  "exam_tips": [
+    "Practice coding problems on platforms like LeetCode and HackerRank.",
+    "Review system design principles and common architectural patterns.",
+    "Understand the trade-offs involved in different design decisions.",
+    "Be prepared to discuss your past projects and experiences in detail.",
+    "Research Flipkart's technology stack and engineering challenges.",
+    "Practice answering behavioral questions using the STAR method (Situation, Task, Action, Result).",
+    "Demonstrate a passion for technology and a willingness to learn.",
+    "Ask thoughtful questions to the interviewer to show your interest and engagement."
+  ]
+}
