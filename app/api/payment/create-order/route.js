@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import Razorpay from "razorpay";
 
 const PLANS = {
     basic:   { credits: 10, amount: 9900,  label: "Basic"   },  // ₹99
@@ -7,12 +6,26 @@ const PLANS = {
     premium: { credits: 50, amount: 34900, label: "Premium" },  // ₹349
 };
 
-const razorpay = new Razorpay({
-    key_id:     process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+function getRazorpay() {
+    const keyId     = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    if (!keyId || !keySecret) return null;
+
+    // Lazy import so the module doesn't crash at build time when keys are absent
+    const Razorpay = require("razorpay");
+    return new Razorpay({ key_id: keyId, key_secret: keySecret });
+}
 
 export async function POST(req) {
+    const razorpay = getRazorpay();
+
+    if (!razorpay) {
+        return NextResponse.json(
+            { error: "Payments are not configured yet. Please add Razorpay keys to enable this feature." },
+            { status: 503 }
+        );
+    }
+
     try {
         const { planId, email } = await req.json();
 
@@ -26,14 +39,10 @@ export async function POST(req) {
         const plan = PLANS[planId];
 
         const order = await razorpay.orders.create({
-            amount:   plan.amount,   // in paise
+            amount:   plan.amount,
             currency: "INR",
             receipt:  `receipt_${Date.now()}`,
-            notes: {
-                email,
-                planId,
-                credits: plan.credits,
-            },
+            notes:    { email, planId, credits: plan.credits },
         });
 
         console.log(`[payment] Order created: ${order.id} for ${email}, plan: ${planId}`);

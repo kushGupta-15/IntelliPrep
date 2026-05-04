@@ -10,4 +10,7 @@ export const { GET, POST, PUT } = serve({
     GenerateNotes,
     GenerateStudyTypeContent,
   ],
+  // In production Inngest uses INNGEST_SIGNING_KEY from env automatically.
+  // Explicitly passing it here ensures it's always picked up.
+  signingKey: process.env.INNGEST_SIGNING_KEY,
 });

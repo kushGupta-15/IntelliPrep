@@ -5,6 +5,13 @@ import { USER_TABLE } from "../../../../configs/schema";
 import { eq, sql } from "drizzle-orm";
 
 export async function POST(req) {
+    if (!process.env.RAZORPAY_KEY_SECRET) {
+        return NextResponse.json(
+            { error: "Payments are not configured yet." },
+            { status: 503 }
+        );
+    }
+
     try {
         const { razorpay_order_id, razorpay_payment_id, razorpay_signature, email, credits } = await req.json();
 
@@ -13,10 +20,9 @@ export async function POST(req) {
         }
 
         // Verify Razorpay signature
-        const body = razorpay_order_id + "|" + razorpay_payment_id;
         const expectedSignature = crypto
             .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-            .update(body)
+            .update(`${razorpay_order_id}|${razorpay_payment_id}`)
             .digest("hex");
 
         if (expectedSignature !== razorpay_signature) {
@@ -24,13 +30,12 @@ export async function POST(req) {
             return NextResponse.json({ error: "Payment verification failed" }, { status: 400 });
         }
 
-        console.log(`[payment] ✅ Payment verified: ${razorpay_payment_id} for ${email}, adding ${credits} credits`);
+        console.log(`[payment] ✅ Verified: ${razorpay_payment_id} for ${email}, adding ${credits} credits`);
 
-        // Add credits to user
         const updated = await db
             .update(USER_TABLE)
             .set({
-                credits: sql`COALESCE(${USER_TABLE.credits}, 0) + ${Number(credits)}`,
+                credits:  sql`COALESCE(${USER_TABLE.credits}, 0) + ${Number(credits)}`,
                 isMember: true,
             })
             .where(eq(USER_TABLE.email, email))
@@ -40,11 +45,11 @@ export async function POST(req) {
             return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
 
-        console.log(`[payment] 💳 New credit balance for ${email}: ${updated[0].credits}`);
+        console.log(`[payment] 💳 New balance for ${email}: ${updated[0].credits}`);
 
         return NextResponse.json({
-            success: true,
-            credits: updated[0].credits,
+            success:   true,
+            credits:   updated[0].credits,
             paymentId: razorpay_payment_id,
         });
     } catch (error) {

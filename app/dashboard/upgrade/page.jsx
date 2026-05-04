@@ -94,6 +94,12 @@ export default function UpgradePage() {
             return;
         }
 
+        // If Razorpay isn't configured, show a friendly message
+        if (!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
+            toast("Payments coming soon! Credits will be available shortly.", { icon: "🚀" });
+            return;
+        }
+
         setLoadingPlan(plan.id);
 
         try {
@@ -184,7 +190,13 @@ export default function UpgradePage() {
                             </div>
                         )}
                     </div>
-                </div>
+
+                    {/* Coming soon banner when Razorpay not configured */}
+                    {!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID && (
+                        <div className="mt-6 bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-center text-amber-800 text-sm font-medium">
+                            🚀 Payments are coming soon — plans are shown for preview only.
+                        </div>
+                    )}                </div>
 
                 {/* Plans */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
