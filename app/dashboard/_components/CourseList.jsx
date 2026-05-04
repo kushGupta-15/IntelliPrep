@@ -101,6 +101,7 @@ function CourseList() {
                         course={course} 
                         key={course.id || course.courseId} 
                         onCourseDeleted={handleCourseDeleted}
+                        onCourseUpdated={() => getCourseList(false)}
                     />
             )) : 
             [1,2,3,4,5,6].map((_,index)=>(

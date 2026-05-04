@@ -4,10 +4,10 @@ const OpenAI = require("openai");
 const openAiApiKey = process.env.OPENAI_API_KEY;
 
 if (!openAiApiKey) { 
-  throw new Error("Missing OPENAI_API_KEY environment variable for OpenAI (notes)."); 
+  console.warn("[OpenAiNotesModel] Missing OPENAI_API_KEY — OpenAI notes model will not work. Using Groq as primary.");
 } 
 
-const openai = new OpenAI({ apiKey: openAiApiKey }); 
+const openai = openAiApiKey ? new OpenAI({ apiKey: openAiApiKey }) : null;
 
 class OpenAINotesAdapter { 
   constructor(model) { 
@@ -15,6 +15,9 @@ class OpenAINotesAdapter {
   } 
 
   async sendMessage(prompt) { 
+    if (!openai) {
+      throw new Error("[OpenAiNotesModel] OpenAI client not initialized — OPENAI_API_KEY is missing.");
+    }
     const completion = await openai.chat.completions.create({
       model: this.model,
       messages: [

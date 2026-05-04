@@ -2,10 +2,9 @@
 
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Button } from '../../../../components/ui/button';
-import { useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowLeft, BookOpen, CheckCircle } from 'lucide-react';
 
 function ViewNotes() {
   const { courseId } = useParams();
@@ -14,138 +13,159 @@ function ViewNotes() {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  const GetNotes = async () => {
-    try {
-      setIsLoading(true);
-      const result = await axios.post("/api/study-type", {
-        courseId: courseId,
-        studyType: 'notes',
-      });
-      setNotes(result.data);
-    } catch (error) {
-      console.error("Error fetching notes:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
-    GetNotes();
-  }, []);
+    const fetchNotes = async () => {
+      try {
+        setIsLoading(true);
+        const result = await axios.post("/api/study-type", {
+          courseId,
+          studyType: 'notes',
+        });
+        setNotes(result.data);
+      } catch (error) {
+        console.error("Error fetching notes:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchNotes();
+  }, [courseId]);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="animate-pulse space-y-4 w-full max-w-5xl">
-          <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-          <div className="h-32 bg-gray-200 rounded"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-gray-500 font-medium">Loading your notes...</p>
         </div>
       </div>
     );
   }
 
-  return notes && (
-    <div className="min-h-screen bg-gray-50 py-4 sm:py-6 md:py-8">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
-          <Button
-            variant="ghost"
-            onClick={() => router.back()}
-            className="text-gray-600 hover:text-gray-900"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            <span className="whitespace-nowrap">Back to Course</span>
+  if (!notes || notes.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center p-8 bg-white rounded-2xl shadow-sm border max-w-sm">
+          <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-600 font-medium">No notes available yet.</p>
+          <p className="text-sm text-gray-400 mt-1">Notes are generated with the course.</p>
+          <Button onClick={() => router.back()} variant="outline" className="mt-4">Go Back</Button>
+        </div>
+      </div>
+    );
+  }
+
+  const isLast = stepCount === notes.length - 1;
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Top bar */}
+      <div className="sticky top-0 z-10 bg-white border-b shadow-sm">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+          <Button variant="ghost" size="sm" onClick={() => router.back()} className="text-gray-600 hover:text-gray-900 shrink-0">
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Back
           </Button>
-          <div className="text-sm text-gray-500">
-            Note {stepCount + 1} of {notes.length}
+
+          {/* Chapter dots */}
+          <div className="flex items-center gap-1.5 flex-1 justify-center overflow-x-auto py-1">
+            {notes.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setStepCount(i)}
+                className={`shrink-0 rounded-full transition-all duration-200 ${
+                  i === stepCount
+                    ? 'w-6 h-2.5 bg-blue-600'
+                    : i < stepCount
+                    ? 'w-2.5 h-2.5 bg-blue-300'
+                    : 'w-2.5 h-2.5 bg-gray-200 hover:bg-gray-300'
+                }`}
+                title={`Chapter ${i + 1}`}
+              />
+            ))}
+          </div>
+
+          <span className="text-sm text-gray-400 shrink-0 font-medium">
+            {stepCount + 1} / {notes.length}
+          </span>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+          {/* Chapter header strip */}
+          <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-4">
+            <div className="flex items-center gap-2">
+              <span className="bg-white/20 text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                Chapter {stepCount + 1}
+              </span>
+            </div>
+          </div>
+
+          {/* Notes HTML content */}
+          <div className="px-6 py-8 md:px-10 md:py-10">
+            <div
+              className="
+                prose prose-base max-w-none
+                prose-headings:font-bold prose-headings:text-gray-900
+                prose-h2:text-2xl prose-h2:mt-0 prose-h2:mb-4 prose-h2:pb-3 prose-h2:border-b prose-h2:border-gray-100
+                prose-h3:text-lg prose-h3:text-blue-700 prose-h3:mt-6 prose-h3:mb-2
+                prose-p:text-gray-600 prose-p:leading-relaxed
+                prose-ul:space-y-1.5
+                prose-li:text-gray-600 prose-li:leading-relaxed
+                prose-strong:text-gray-800 prose-strong:font-semibold
+                prose-code:bg-gray-100 prose-code:text-blue-700 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm
+                prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-pre:rounded-xl prose-pre:overflow-x-auto
+              "
+              dangerouslySetInnerHTML={{ __html: notes[stepCount]?.notes }}
+            />
           </div>
         </div>
 
-        {/* Progress Bar */}
-        <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm mb-4 sm:mb-6">
-          <div className="flex flex-wrap gap-3 sm:gap-4 items-center">
+        {/* Navigation */}
+        <div className="flex items-center justify-between mt-6 gap-4">
+          <Button
+            variant="outline"
+            onClick={() => setStepCount(s => s - 1)}
+            disabled={stepCount === 0}
+            className="flex items-center gap-2"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Previous
+          </Button>
+
+          {isLast ? (
             <Button
+              onClick={() => setStepCount(0)}
               variant="outline"
-              onClick={() => setStepCount(stepCount - 1)}
-              disabled={stepCount === 0}
-              className="flex items-center text-sm sm:text-base px-2 sm:px-4"
+              className="flex items-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50"
             >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              <span className="hidden sm:inline">Previous</span>
+              <CheckCircle className="h-4 w-4" />
+              Review from start
             </Button>
-            
-            <div className="flex-1 flex gap-1 items-center min-w-0">
-              {notes.map((_, index) => (
-                <div
-                  key={index}
-                  className={`flex-1 h-1.5 sm:h-2 rounded-full transition-all duration-300 ${
-                    index === stepCount
-                      ? "bg-blue-600"
-                      : index < stepCount
-                      ? "bg-blue-200"
-                      : "bg-gray-200"
-                  }`}
-                />
-              ))}
-            </div>
-            
+          ) : (
             <Button
-              variant="outline"
-              onClick={() => setStepCount(stepCount + 1)}
-              disabled={stepCount === notes.length - 1}
-              className="flex items-center text-sm sm:text-base px-2 sm:px-4"
+              onClick={() => setStepCount(s => s + 1)}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
             >
-              <span className="hidden sm:inline">Next</span>
-              <ChevronRight className="h-4 w-4 ml-1" />
+              Next
+              <ChevronRight className="h-4 w-4" />
             </Button>
-          </div>
+          )}
         </div>
 
-        <div className="bg-white rounded-xl p-4 sm:p-6 md:p-8 lg:p-10 shadow-sm mb-4 sm:mb-6">
-          <div 
-            className="h-[calc(100vh-20rem)] sm:h-[calc(100vh-22rem)] md:h-[calc(100vh-24rem)] 
-              overflow-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100
-              prose prose-sm sm:prose lg:prose-lg max-w-none break-words
-              prose-headings:text-gray-900 prose-headings:break-words
-              prose-p:text-gray-600 prose-p:break-words
-              prose-a:text-blue-600 prose-a:break-words
-              prose-img:rounded-lg prose-img:max-w-full prose-img:h-auto
-              prose-pre:overflow-x-auto prose-pre:whitespace-pre-wrap
-              prose-code:break-words"
-            dangerouslySetInnerHTML={{ __html: notes[stepCount]?.notes }} 
-            style={{
-              scrollbarWidth: 'thin',
-              scrollbarColor: '#D1D5DB #F3F4F6'
-            }}
-          />
-        </div>
-
-        {/* End Message */}
-        {notes.length === stepCount + 1 && (
-          <div className="bg-blue-50 rounded-xl p-4 sm:p-6 md:p-8 text-center">
-            <h2 className="text-lg sm:text-xl font-semibold text-blue-900 mb-2 sm:mb-3">
-              Congratulations! You've completed all notes
-            </h2>
-            <p className="text-blue-700 mb-4 sm:mb-6 text-sm sm:text-base">
-              Great job making it through all the material. Would you like to review again or return to the course?
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Button
-                variant="outline"
-                onClick={() => setStepCount(0)}
-                className="w-full sm:w-auto sm:min-w-[120px]"
-              >
-                Review Again
-              </Button>
-              <Button
-                onClick={() => router.back()}
-                className="w-full sm:w-auto sm:min-w-[120px] bg-blue-600 hover:bg-blue-700"
-              >
-                Back to Course
-              </Button>
+        {/* Completion banner */}
+        {isLast && (
+          <div className="mt-6 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-6 text-center">
+            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <CheckCircle className="w-6 h-6 text-green-600" />
             </div>
+            <h3 className="text-lg font-bold text-green-900 mb-1">All chapters completed!</h3>
+            <p className="text-green-700 text-sm mb-4">Great work making it through all the material.</p>
+            <Button onClick={() => router.back()} className="bg-green-600 hover:bg-green-700 text-white">
+              Back to Course
+            </Button>
           </div>
         )}
       </div>

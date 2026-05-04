@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import MaterialCardItem from './MaterialCardItem';
 import axios from 'axios';
 import { Button } from '../../../../components/ui/button';
@@ -9,6 +9,8 @@ import { RefreshCcw } from 'lucide-react';
 function StudyMaterialSection({ courseId, course }) {
   const [studyTypeContent, setStudyTypeContent] = useState();
   const [refreshing, setRefreshing] = useState(false);
+  const intervalRef = useRef(null);
+  const refreshRef = useRef(null);
 
   const getStudyMaterial = async (showLoading = false) => {
     if (showLoading) setRefreshing(true);
@@ -18,7 +20,6 @@ function StudyMaterialSection({ courseId, course }) {
         studyType: 'ALL',
       });
       setStudyTypeContent(result.data);
-      console.log("📊 Study material refreshed:", result.data);
     } catch (error) {
       console.error("Error fetching study material:", error);
     } finally {
@@ -26,15 +27,47 @@ function StudyMaterialSection({ courseId, course }) {
     }
   };
 
-  useEffect(() => {
-    getStudyMaterial();
-    
-    const interval = setInterval(() => {
-      getStudyMaterial();
-    }, 10000); 
+  // Keep a stable ref so the interval always calls the latest version
+  refreshRef.current = getStudyMaterial;
 
-    return () => clearInterval(interval);
+  // Check whether any content is still pending (status !== Ready)
+  const hasPendingContent = (data) => {
+    if (!data?.result) return false;
+    const { flashCard, quiz } = data.result;
+    // If either exists but has no content yet, it's still generating
+    // (notes are generated with the course itself, not on-demand)
+    return false; // polling for study-type content is handled per-card after Generate is clicked
+  };
+
+  useEffect(() => {
+    // Initial fetch
+    getStudyMaterial();
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
   }, [courseId]);
+
+  // Start/stop polling based on whether content is pending
+  const startPolling = () => {
+    if (intervalRef.current) return; // already polling
+    console.log("▶️  [StudyMaterial] Starting content status polling");
+    intervalRef.current = setInterval(() => {
+      console.log("🔄 [StudyMaterial] Polling for content updates...");
+      refreshRef.current();
+    }, 4000);
+  };
+
+  const stopPolling = () => {
+    if (intervalRef.current) {
+      console.log("⏹️  [StudyMaterial] Stopping content status polling");
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
 
   const materialList = [
     {
@@ -47,7 +80,7 @@ function StudyMaterialSection({ courseId, course }) {
     {
       name: 'Flashcard',
       desc: 'Flashcards help to remember the concepts',
-      icon: '/flashCard.png',
+      icon: '/flashcard.png',
       path: '/flashcards',
       type: 'flashCard',
     },
@@ -60,19 +93,15 @@ function StudyMaterialSection({ courseId, course }) {
     },
   ];
 
-  const handleManualRefresh = () => {
-    getStudyMaterial(true);
-  };
-
   return (
     <section className="mt-8">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl md:text-3xl font-semibold text-gray-800">
           📚 Study Material
         </h2>
-        <Button 
-          onClick={handleManualRefresh} 
-          variant="outline" 
+        <Button
+          onClick={() => getStudyMaterial(true)}
+          variant="outline"
           size="sm"
           disabled={refreshing}
         >
@@ -89,6 +118,8 @@ function StudyMaterialSection({ courseId, course }) {
             studyTypeContent={studyTypeContent}
             course={course}
             refreshData={() => getStudyMaterial()}
+            onGenerateStart={startPolling}
+            onContentReady={stopPolling}
           />
         ))}
       </div>

@@ -24,7 +24,7 @@ export async function DELETE(req) {
 
         if (existingCourse[0].status === "Generating") {
             return NextResponse.json({ 
-                error: "Cannot delete course while it's still generating. Please wait for completion." 
+                error: "Cannot delete course while it's still generating. Stop the generation first." 
             }, { status: 400 });
         }        
 

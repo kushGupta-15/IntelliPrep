@@ -7,6 +7,7 @@ export const USER_TABLE = pgTable('users', {
     name: varchar().notNull(),
     email: varchar().notNull(),
     isMember : boolean().default(false),
+    credits : integer().default(5),  // free tier starts with 5 credits
 })
 
 export const STUDY_MATERIAL_TABLE = pgTable('studyMaterial',{

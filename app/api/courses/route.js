@@ -35,21 +35,36 @@ export async function POST(req) {
 }
 
 export async function GET(req) {
-    const reqURL = req.url;
-    const {searchParams} = new URL(reqURL);
-    const courseId  = searchParams?.get('courseId');
+    try {
+        const reqURL = req.url;
+        const {searchParams} = new URL(reqURL);
+        const courseId  = searchParams?.get('courseId');
 
-    const course = await db.select().from(STUDY_MATERIAL_TABLE).where(eq(STUDY_MATERIAL_TABLE?.courseId,courseId));
-    
-    if (course[0]) {
+        if (!courseId) {
+            return NextResponse.json({ error: "Missing courseId parameter" }, { status: 400 });
+        }
+
+        console.log("[GET /api/courses] Fetching courseId:", courseId);
+
+        const course = await db.select().from(STUDY_MATERIAL_TABLE).where(eq(STUDY_MATERIAL_TABLE?.courseId,courseId));
+
+        if (!course[0]) {
+            console.warn("[GET /api/courses] Course not found:", courseId);
+            return NextResponse.json({ error: "Course not found" }, { status: 404 });
+        }
+
         if (typeof course[0].courseLayout === 'string') {
             try {
                 course[0].courseLayout = JSON.parse(course[0].courseLayout);
             } catch (error) {
-                console.error("Error parsing courseLayout:", error);
+                console.error("[GET /api/courses] Error parsing courseLayout:", error);
             }
         }
+
+        console.log("[GET /api/courses] Found course, status:", course[0].status);
+        return NextResponse.json({result : course[0]});
+    } catch (error) {
+        console.error("[GET /api/courses] Database Error:", error);
+        return NextResponse.json({ error: "Internal Server Error", details: error.message }, { status: 500 });
     }
-    
-    return NextResponse.json({result : course[0]});
 }

@@ -53,9 +53,9 @@ The application features user authentication via Clerk, real-time content genera
    NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
    
    # AI Provider
-   OPENAI_API_KEY=your_openai_api_key
-   OPENAI_MODEL_ID=gpt-4o-mini
-   
+   GROQ_API_KEY=your_groq_api_key
+   GROQ_MODEL_ID=groq-1.5-mini
+
    # Background Jobs
    INNGEST_EVENT_KEY=your_inngest_event_key
    INNGEST_SIGNING_KEY=your_inngest_signing_key

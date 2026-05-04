@@ -22,7 +22,7 @@ export async function POST(req) {
             ? await generateStudyTypeContent.sendMessage(prompt)
             : await GenerateQuizAiModel.sendMessage(prompt);
 
-        let aiResponseText = result.response.text();
+        let aiResponseText = await result.response.text();
         
         aiResponseText = aiResponseText
             .replace(/^```json\s*/i, "")

@@ -1,51 +1,60 @@
-const OpenAI = require("openai");
+const groqApiKey = process.env.GROQ_API_KEY;
 
-const openAiApiKey = process.env.OPENAI_API_KEY;
-
-if (!openAiApiKey) {
-  throw new Error("Missing OPENAI_API_KEY environment variable for OpenAI.");
+if (!groqApiKey) {
+  throw new Error("Missing GROQ_API_KEY environment variable for Groq.");
 }
 
-const openai = new OpenAI({ apiKey: openAiApiKey });
+const groqModelId = process.env.GROQ_MODEL_ID || "llama-3.3-70b-versatile";
 
-class OpenAIChatAdapter {
+async function callGroqApi(systemPrompt, userPrompt) {
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${groqApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: groqModelId,
+      messages: [
+        systemPrompt ? { role: "system", content: systemPrompt } : null,
+        { role: "user", content: userPrompt },
+      ].filter(Boolean),
+      temperature: 1,
+      max_tokens: 2048,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    const error = new Error(`Groq API error ${response.status}: ${body}`);
+    error.status = response.status;
+    throw error;
+  }
+
+  const data = await response.json();
+  const text = data.choices?.[0]?.message?.content || "";
+
+  return text;
+}
+
+class GroqChatAdapter {
   constructor(model, systemPrompt = null) {
     this.model = model;
     this.systemPrompt = systemPrompt;
   }
 
   async sendMessage(prompt) {
-    const messages = [];
-    
-    if (this.systemPrompt) {
-      messages.push({
-        role: "system",
-        content: this.systemPrompt
-      });
-    }
-    
-    messages.push({ role: "user", content: prompt });
-
-    const completion = await openai.chat.completions.create({
-      model: this.model,
-      messages: messages,
-      temperature: 1,
-    });
-
-    const text = completion.choices?.[0]?.message?.content || "";
-
+    const text = await callGroqApi(this.systemPrompt, prompt);
     return {
       response: {
-        text: () => text,
+        text: async () => text,
       },
     };
   }
 }
 
-const openAiModelId = process.env.OPENAI_MODEL_ID || "gpt-4o-mini";
-
-export const courseOutlineAIModel = new OpenAIChatAdapter(
-  openAiModelId,
+export const courseOutlineAIModel = new GroqChatAdapter(
+  groqModelId,
   `You are an expert educational content creator. Generate comprehensive study material outlines in JSON format.
 
 CRITICAL REQUIREMENTS:
@@ -74,17 +83,17 @@ JSON Structure Required:
 }`
 );
 
-export const generateStudyTypeContent = new OpenAIChatAdapter(
-  openAiModelId,
+export const generateStudyTypeContent = new GroqChatAdapter(
+  groqModelId,
   "You are a strict JSON API. Generate flashcards in JSON format only. Each flashcard should have 'front' and 'back' properties. Do NOT include ``` fences, markdown, or any extra explanation. Return only valid JSON array of flashcard objects."
 );
 
-export const GenerateQuizAiModel = new OpenAIChatAdapter(
-  openAiModelId,
+export const GenerateQuizAiModel = new GroqChatAdapter(
+  groqModelId,
   "You are a strict JSON API. Generate quiz questions in JSON format only. Each question should have questionText, options array, and correctAnswer. Do NOT include ``` fences, markdown, or any extra explanation. Return only valid JSON object with questions array."
 );
 
-export const generateNotesAiModel = new OpenAIChatAdapter(
-  openAiModelId,
+export const generateNotesAiModel = new GroqChatAdapter(
+  groqModelId,
   "You generate ONLY HTML exam preparation notes. Return valid HTML only (no markdown, no JSON, no ``` fences). Use proper HTML tags like <h2>, <h3>, <p>, <ul>, <li>, <strong>."
 );

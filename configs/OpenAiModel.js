@@ -3,10 +3,10 @@ const OpenAI = require("openai");
 const openAiApiKey = process.env.OPENAI_API_KEY; 
 
 if (!openAiApiKey) { 
-  throw new Error("Missing OPENAI_API_KEY environment variable for OpenAI.");
+  console.warn("[OpenAiModel] Missing OPENAI_API_KEY — OpenAI course outline model will not work. Using Groq as primary.");
 }
 
-const openai = new OpenAI({ apiKey: openAiApiKey }); 
+const openai = openAiApiKey ? new OpenAI({ apiKey: openAiApiKey }) : null;
 
 class OpenAIChatAdapter { 
   constructor(model) { 
@@ -14,6 +14,9 @@ class OpenAIChatAdapter {
   } 
 
   async sendMessage(prompt) { 
+    if (!openai) {
+      throw new Error("[OpenAiModel] OpenAI client not initialized — OPENAI_API_KEY is missing.");
+    }
     const completion = await openai.chat.completions.create({ 
       model: this.model, 
       messages: [

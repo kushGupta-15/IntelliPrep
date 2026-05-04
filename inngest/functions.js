@@ -7,8 +7,7 @@ import {eq} from 'drizzle-orm';
 
 
 export const helloWorld = inngest.createFunction(
-  { id: "hello-world" },
-  { event: "test/hello.world" },
+  { id: "hello-world", triggers: [{ event: "test/hello.world" }] },
   async ({ event, step }) => {
     await step.sleep("wait-a-moment", "1s");
     return { message: `Hello ${event.data.email}!` };
@@ -16,8 +15,7 @@ export const helloWorld = inngest.createFunction(
 );
 
 export const CreateNewUser = inngest.createFunction(
-  { id: "create-user" },
-  { event: "user.create" },
+  { id: "create-user", triggers: [{ event: "user.create" }] },
   async ({ event, step }) => {
     //get the event data
     const { user } = event.data;
@@ -52,20 +50,52 @@ export const CreateNewUser = inngest.createFunction(
 );
 
 export const GenerateNotes = inngest.createFunction(
-  { id: "generate-course" },
-  { event: "notes.generate" },
+  { id: "generate-course", triggers: [{ event: "notes.generate" }] },
   async ({ event, step }) => {
     const { course } = event.data;
-    console.log("course here", course);
+    const functionStart = Date.now();
+    console.log("🚀 [GenerateNotes] Function started at:", new Date().toISOString());
+    console.log("📚 [GenerateNotes] Course ID:", course?.courseId);
+    console.log("📚 [GenerateNotes] Course topic:", course?.topic);
+    console.log("📚 [GenerateNotes] courseLayout type:", typeof course?.courseLayout);
 
     try {
-      await step.run("Generate Chapter Notes", async () => {
-        const Chapters = course?.courseLayout?.chapters || [];
+      const wasCancelled = await step.run("Generate Chapter Notes", async () => {
+        // Parse courseLayout inside the step — Inngest replays steps from serialized
+        // state, so variables from the outer scope are not reliably available here.
+        let courseLayout = course?.courseLayout;
+        if (typeof courseLayout === 'string') {
+          try {
+            courseLayout = JSON.parse(courseLayout);
+            console.log("📚 [GenerateNotes] Parsed courseLayout from string inside step");
+          } catch (e) {
+            console.error("❌ [GenerateNotes] Failed to parse courseLayout string:", e.message);
+          }
+        }
 
-        console.log("chapters in the chaptersss", Chapters);
+        const Chapters = courseLayout?.chapters || [];
+        console.log(`📖 [GenerateNotes] Total chapters to generate: ${Chapters.length}`);
+
+        if (Chapters.length === 0) {
+          console.error("❌ [GenerateNotes] No chapters found in courseLayout! courseLayout value:", JSON.stringify(courseLayout));
+          return "NoChapters";
+        }
 
         for (let index = 0; index < Chapters.length; index++) {
+          // Check cancellation before starting each chapter
+          const courseRow = await db
+            .select({ status: STUDY_MATERIAL_TABLE.status })
+            .from(STUDY_MATERIAL_TABLE)
+            .where(eq(STUDY_MATERIAL_TABLE.courseId, course?.courseId));
+
+          if (courseRow[0]?.status === "Cancelled") {
+            console.log(`🛑 [GenerateNotes] Course ${course?.courseId} was cancelled. Stopping at chapter ${index + 1}.`);
+            return "Cancelled";
+          }
+
           const chapter = Chapters[index];
+          const chapterStart = Date.now();
+          console.log(`\n⏳ [GenerateNotes] Starting chapter ${index + 1}/${Chapters.length}: "${chapter?.chapter_title || 'Untitled'}"`);
 
           const PROMPT = `
 You are a skilled academic content generator.
@@ -98,39 +128,101 @@ ${JSON.stringify(chapter)}
 Return only HTML content, nothing else.
 `;
 
-          const result = await generateNotesAiModel.sendMessage(PROMPT);
-          const aiResp = await result.response.text();
+          try {
+            console.log(`🤖 [GenerateNotes] Calling AI for chapter ${index + 1}...`);
+            const aiCallStart = Date.now();
 
-          console.log("ai response", aiResp);
-          await db.insert(CHAPTER_NOTES_TABLE).values({
-            chapterId: index,
-            courseId: course?.courseId,
-            notes: aiResp,
-          });
+            // Retry up to 3 times on 429 rate limit errors
+            let aiResp = null;
+            for (let attempt = 1; attempt <= 3; attempt++) {
+              try {
+                const result = await generateNotesAiModel.sendMessage(PROMPT);
+                aiResp = await result.response.text();
+                break; // success — exit retry loop
+              } catch (retryErr) {
+                const is429 = retryErr?.status === 429 || retryErr?.message?.includes("429");
+                if (is429 && attempt < 3) {
+                  // Parse wait time from Groq error message, default to 15s
+                  const waitMatch = retryErr.message?.match(/try again in ([\d.]+)s/i);
+                  const waitSeconds = waitMatch ? Math.ceil(parseFloat(waitMatch[1])) + 2 : 15;
+                  console.warn(`⏳ [GenerateNotes] Rate limited on chapter ${index + 1}, attempt ${attempt}/3. Waiting ${waitSeconds}s...`);
+                  await new Promise(resolve => setTimeout(resolve, waitSeconds * 1000));
+                } else {
+                  throw retryErr; // non-429 or out of retries — propagate
+                }
+              }
+            }
+
+            const aiCallDuration = ((Date.now() - aiCallStart) / 1000).toFixed(2);
+            console.log(`✅ [GenerateNotes] AI responded for chapter ${index + 1} in ${aiCallDuration}s (${aiResp.length} chars)`);
+
+            const dbStart = Date.now();
+            await db.insert(CHAPTER_NOTES_TABLE).values({
+              chapterId: index,
+              courseId: course?.courseId,
+              notes: aiResp,
+            });
+            console.log(`💾 [GenerateNotes] Saved chapter ${index + 1} to DB in ${((Date.now() - dbStart) / 1000).toFixed(2)}s`);
+          } catch (chapterError) {
+            console.error(`❌ [GenerateNotes] Error on chapter ${index + 1}:`, chapterError?.message || chapterError);
+            throw chapterError;
+          }
+
+          const chapterDuration = ((Date.now() - chapterStart) / 1000).toFixed(2);
+          console.log(`⏱️  [GenerateNotes] Chapter ${index + 1} total time: ${chapterDuration}s`);
+
+          // Small pause between chapters to stay within Groq's 12k TPM free tier limit
+          if (index < Chapters.length - 1) {
+            console.log(`😴 [GenerateNotes] Waiting 8s before next chapter to avoid rate limits...`);
+            await new Promise(resolve => setTimeout(resolve, 8000));
+          }
         }
         return "Completed";
       });
+
+      // If cancelled or no chapters, skip the "Ready" update
+      if (wasCancelled === "Cancelled") {
+        const totalDuration = ((Date.now() - functionStart) / 1000).toFixed(2);
+        console.log(`🛑 [GenerateNotes] Function exiting early due to cancellation. Total time: ${totalDuration}s`);
+        return;
+      }
+
+      if (wasCancelled === "NoChapters") {
+        console.error("❌ [GenerateNotes] Aborting — no chapters were found. Course will remain in Generating state.");
+        return;
+      }
     } catch (error) {
-      console.log("error in the notes generation section", error);
+      console.error("❌ [GenerateNotes] Error in notes generation:", error?.message || error);
+      return;
     }
 
     await step.run("Update Course Status to Ready", async () => {
-      await db
-        .update(STUDY_MATERIAL_TABLE)
-        .set({
-          status: "Ready",
-        })
+      // Final cancellation guard — in case it was cancelled while the last chapter was being saved
+      const courseRow = await db
+        .select({ status: STUDY_MATERIAL_TABLE.status })
+        .from(STUDY_MATERIAL_TABLE)
         .where(eq(STUDY_MATERIAL_TABLE.courseId, course?.courseId));
 
+      if (courseRow[0]?.status === "Cancelled") {
+        console.log(`🛑 [GenerateNotes] Course ${course?.courseId} was cancelled before final status update. Skipping.`);
+        return "Cancelled";
+      }
+
+      console.log("🔄 [GenerateNotes] Updating course status to Ready...");
+      await db
+        .update(STUDY_MATERIAL_TABLE)
+        .set({ status: "Ready" })
+        .where(eq(STUDY_MATERIAL_TABLE.courseId, course?.courseId));
+
+      const totalDuration = ((Date.now() - functionStart) / 1000).toFixed(2);
+      console.log(`🎉 [GenerateNotes] Course "${course?.courseId}" is READY! Total time: ${totalDuration}s`);
       return "Success";
     });
   }
 );
 
 export const GenerateStudyTypeContent = inngest.createFunction(
-    {id : "Generate Study Type Content"},
-    {event : "studyType.content"},
-    
+    { id: "Generate Study Type Content", triggers: [{ event: "studyType.content" }] },
     async ({event, step})=>{
       const {studyType,prompt,courseId,recordId} = event.data;
       console.log("🚀 [Inngest] GenerateStudyTypeContent function started");
@@ -143,7 +235,7 @@ export const GenerateStudyTypeContent = inngest.createFunction(
             ? await generateStudyTypeContent.sendMessage(prompt)
             : await GenerateQuizAiModel.sendMessage(prompt);
 
-          let aiResponseText = result.response.text();
+          let aiResponseText = await result.response.text();
           
           aiResponseText = aiResponseText
             .replace(/^```json\s*/i, "")
@@ -173,7 +265,8 @@ export const GenerateStudyTypeContent = inngest.createFunction(
               ? await generateStudyTypeContent.sendMessage(simplePrompt)
               : await GenerateQuizAiModel.sendMessage(simplePrompt);
               
-            let retryText = retryResult.response.text()
+            let retryText = await retryResult.response.text();
+            retryText = retryText
               .replace(/^```json\s*/i, "")
               .replace(/^```\s*/i, "")
               .replace(/```$/i, "")

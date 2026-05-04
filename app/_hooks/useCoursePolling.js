@@ -3,33 +3,32 @@
 import { useEffect, useRef } from 'react';
 
 /**
- * Custom hook to poll for course status updates with adaptive intervals
- * @param {Function} refreshFunction - Function to call for refreshing data
- * @param {Array} courseList - Array of courses to check for generating status
+ * Polls for course status updates while any course is still generating.
+ * Uses a stable ref for the refresh function to avoid recreating the interval
+ * on every render, which would cause multiple overlapping intervals.
  */
 export function useCoursePolling(refreshFunction, courseList) {
     const intervalRef = useRef(null);
+    // Keep a stable ref to the latest refreshFunction so the interval
+    // always calls the current version without needing to be recreated.
+    const refreshRef = useRef(refreshFunction);
+    refreshRef.current = refreshFunction;
+
+    const isGenerating = courseList.some(course => course.status === "Generating");
 
     useEffect(() => {
-        const generatingCourses = courseList.filter(course => course.status === "Generating");
-        
-        if (generatingCourses.length > 0) {
-            const now = new Date();
-            const recentCourses = generatingCourses.filter(course => {
-                return true;
-            });
-
-            const interval = recentCourses.length > 0 ? 5000 : 15000; 
-            
-            console.log(`Starting course status polling with ${interval/1000}s interval...`);
-            
-            intervalRef.current = setInterval(() => {
-                console.log("Polling for course status updates...");
-                refreshFunction();
-            }, interval);
+        if (isGenerating) {
+            // Only create a new interval if one isn't already running
+            if (!intervalRef.current) {
+                console.log("▶️  [Polling] Starting course status polling (5s interval)");
+                intervalRef.current = setInterval(() => {
+                    console.log("🔄 [Polling] Checking for course status updates...");
+                    refreshRef.current();
+                }, 5000);
+            }
         } else {
             if (intervalRef.current) {
-                console.log("Stopping course status polling - no generating courses");
+                console.log("⏹️  [Polling] No generating courses — stopping poll");
                 clearInterval(intervalRef.current);
                 intervalRef.current = null;
             }
@@ -41,7 +40,7 @@ export function useCoursePolling(refreshFunction, courseList) {
                 intervalRef.current = null;
             }
         };
-    }, [courseList, refreshFunction]);
+    }, [isGenerating]); // only re-run when generating state changes, not on every list update
 
-    return courseList.some(course => course.status === "Generating");
+    return isGenerating;
 }
