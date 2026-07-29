@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import SelectOption from './_components/SelectOption';
 import { Button } from '../../components/ui/button';
 import TopicInput from './_components/TopicInput';
@@ -18,6 +18,8 @@ function Create() {
     const [loading, setLoading] = useState(false);
     const [credits, setCredits] = useState(null);
     const [courseCreated, setCourseCreated] = useState(false);
+    const [statusMessage, setStatusMessage] = useState('');
+    const generateRef = useRef(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -42,13 +44,19 @@ function Create() {
     };
 
     const GenerateCourseOutline = async () => {
+        if (generateRef.current) {
+            return;
+        }
+
         // Credit check
         if (credits !== null && credits <= 0) {
             toast.error("You have no credits left. Please buy more to create a course.");
             return;
         }
 
+        generateRef.current = true;
         setLoading(true);
+        setStatusMessage('Generating your course. Please wait...');
         const courseId = uuidv4();
         try {
             await axios.post('/api/generate-course-outline', {
@@ -62,19 +70,24 @@ function Create() {
             });
             toast.success("Course created! It will appear on your dashboard shortly.");
             setCourseCreated(true);
-            router.replace('/dashboard');
+            setStatusMessage('Your course has been generated successfully.');
         } catch (err) {
             const status = err?.response?.status;
             if (status === 429) {
                 toast.error("AI quota exceeded. Please try again in a moment.");
+                setStatusMessage('AI quota exceeded. Please try again shortly.');
             } else if (status === 402) {
                 toast.error("No credits remaining. Please buy more credits.");
+                setStatusMessage('No credits remaining. Please buy more credits.');
                 router.push('/dashboard/upgrade');
             } else {
-                toast.error(err?.response?.data?.details || err?.message || "Failed to generate course outline");
+                const msg = err?.response?.data?.details || err?.message || "Failed to generate course outline";
+                toast.error(msg);
+                setStatusMessage(msg);
             }
         } finally {
             setLoading(false);
+            generateRef.current = false;
         }
     };
 
@@ -146,17 +159,21 @@ function Create() {
                                   </Button>
                             }
                         </div>
-                        {courseCreated && (
-                            <div className="w-full max-w-md bg-green-50 border border-green-200 rounded-2xl p-6 text-center">
-                                <h3 className="text-xl font-semibold text-green-900">Your course has been generated!</h3>
-                                <p className="mt-2 text-sm text-green-700">
-                                    The course has been successfully created. You can now return to your dashboard to view it.
+                        {statusMessage && (
+                            <div className={`w-full max-w-md rounded-2xl p-6 text-center ${courseCreated ? 'bg-green-50 border border-green-200' : 'bg-blue-50 border border-blue-200'}`}>
+                                <h3 className={`text-xl font-semibold ${courseCreated ? 'text-green-900' : 'text-blue-900'}`}>
+                                    {courseCreated ? 'Your course has been generated!' : 'Generating your course...'}
+                                </h3>
+                                <p className={`mt-2 text-sm ${courseCreated ? 'text-green-700' : 'text-blue-700'}`}>
+                                    {statusMessage}
                                 </p>
-                                <div className="mt-5 flex justify-center">
-                                    <Button variant="secondary" onClick={() => router.push('/dashboard')}>
-                                        Return to Dashboard
-                                    </Button>
-                                </div>
+                                {courseCreated && (
+                                    <div className="mt-5 flex justify-center">
+                                        <Button variant="secondary" onClick={() => router.push('/dashboard')}>
+                                            Return to Dashboard
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
