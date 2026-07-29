@@ -17,6 +17,7 @@ function Create() {
     const { user } = useUser();
     const [loading, setLoading] = useState(false);
     const [credits, setCredits] = useState(null);
+    const [courseCreated, setCourseCreated] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -60,6 +61,7 @@ function Create() {
                 email: user?.primaryEmailAddress?.emailAddress,
             });
             toast.success("Course created! It will appear on your dashboard shortly.");
+            setCourseCreated(true);
             router.replace('/dashboard');
         } catch (err) {
             const status = err?.response?.status;
@@ -131,17 +133,32 @@ function Create() {
                         }
                     </div>
 
-                    <div className={`flex justify-between w-full mt-36 ${step === 0 ? 'justify-center' : ''}`}>
-                        {step !== 0
-                            ? <Button onClick={() => setStep(s => s - 1)} variant="outline">Previous</Button>
-                            : <span />
-                        }
-                        {step === 0
-                            ? <Button onClick={() => setStep(1)}>Next</Button>
-                            : <Button onClick={GenerateCourseOutline} disabled={loading}>
-                                {loading ? <Loader className="animate-spin" /> : 'Generate'}
-                              </Button>
-                        }
+                    <div className={`flex flex-col items-center w-full mt-36 ${step === 0 ? 'justify-center' : ''}`}>
+                        <div className={`flex justify-between w-full mb-4 ${step === 0 ? 'justify-center' : ''}`}>
+                            {step !== 0
+                                ? <Button onClick={() => setStep(s => s - 1)} variant="outline">Previous</Button>
+                                : <span />
+                            }
+                            {step === 0
+                                ? <Button onClick={() => setStep(1)}>Next</Button>
+                                : <Button onClick={GenerateCourseOutline} disabled={loading || courseCreated}>
+                                    {loading ? <Loader className="animate-spin" /> : 'Generate'}
+                                  </Button>
+                            }
+                        </div>
+                        {courseCreated && (
+                            <div className="w-full max-w-md bg-green-50 border border-green-200 rounded-2xl p-6 text-center">
+                                <h3 className="text-xl font-semibold text-green-900">Your course has been generated!</h3>
+                                <p className="mt-2 text-sm text-green-700">
+                                    The course has been successfully created. You can now return to your dashboard to view it.
+                                </p>
+                                <div className="mt-5 flex justify-center">
+                                    <Button variant="secondary" onClick={() => router.push('/dashboard')}>
+                                        Return to Dashboard
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </>
             )}
