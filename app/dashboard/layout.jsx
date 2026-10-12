@@ -6,7 +6,6 @@ import axios from 'axios';
 import { CourseCountContext } from "../_context/CourseCountContext";
 import DashboardHeader from './_components/DashboardHeader';
 import Sidebar from './_components/Sidebar';
-import { Menu } from 'lucide-react';
 
 function DashboardLayout({ children }) {
     const { user } = useUser();
@@ -33,27 +32,19 @@ function DashboardLayout({ children }) {
 
     return (
         <CourseCountContext.Provider value={{ totalCourses, setTotalCourses, credits, setCredits }}>
-            <div className="flex min-h-screen">
+            <div className="flex min-h-screen bg-slate-50/60">
                 <Sidebar
                     isMobileMenuOpen={showSidebar}
                     onClose={() => setShowSidebar(false)}
                 />
 
-                <div className="flex-1 w-full">
-                    {/* Mobile header */}
-                    <div className="md:flex p-4 border-b items-center justify-between lg:hidden">
-                        <button onClick={() => setShowSidebar(true)}>
-                            <Menu />
-                        </button>
-                        <h1 className="text-lg font-semibold">Dashboard</h1>
-                    </div>
+                <div className="flex-1 flex flex-col min-w-0 w-full">
+                    {/* Unified responsive header */}
+                    <DashboardHeader onOpenMobileMenu={() => setShowSidebar(true)} />
 
-                    {/* Desktop header */}
-                    <div className="hidden lg:block">
-                        <DashboardHeader />
-                    </div>
-
-                    <div className="p-4 md:p-10">{children}</div>
+                    <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto">
+                        {children}
+                    </main>
                 </div>
             </div>
         </CourseCountContext.Provider>

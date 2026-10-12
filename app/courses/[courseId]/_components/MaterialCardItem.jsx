@@ -112,18 +112,34 @@ function MaterialCardItem({ item, studyTypeContent, course, refreshData, onGener
   };
 
   return (
-    <div className={`border shadow-md rounded-lg p-5 flex flex-col items-center ${!ready ? 'grayscale' : ''}`}>
-      <h2 className={`p-1 px-2 rounded-full text-[10px] mb-2 text-white ${ready ? 'bg-green-500' : 'bg-gray-500'}`}>
-        {loading ? 'Generating...' : ready ? 'Ready' : 'Generate'}
-      </h2>
+    <div className={`bg-white border rounded-2xl shadow-xs hover:shadow-md transition-all duration-200 p-6 flex flex-col items-center justify-between text-center relative ${
+      !ready && !loading ? 'border-dashed border-gray-300' : 'border-gray-200'
+    }`}>
+      {/* Badge */}
+      <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold mb-3 ${
+        loading ? 'bg-blue-100 text-blue-700' :
+        ready ? 'bg-emerald-100 text-emerald-700' :
+        'bg-gray-100 text-gray-500'
+      }`}>
+        {loading ? 'Generating...' : ready ? '✓ Ready' : 'Available'}
+      </span>
 
-      <Image src={item.icon} alt={item.name} height={50} width={50} />
-      <h2 className="font-medium mt-1">{item.name}</h2>
-      <p className="text-gray-500 text-sm text-center">{item.desc}</p>
+      <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center p-3 mb-3">
+        <Image src={item.icon} alt={item.name} height={48} width={48} className="object-contain" />
+      </div>
+
+      <div className="flex-1 flex flex-col justify-center">
+        <h3 className="font-bold text-gray-900 text-base">{item.name}</h3>
+        <p className="text-gray-500 text-xs sm:text-sm mt-1 leading-relaxed max-w-xs">{item.desc}</p>
+      </div>
 
       <Button
-        className="mt-3 w-full"
-        variant="outline"
+        className={`mt-5 w-full min-h-[40px] font-medium text-xs sm:text-sm rounded-xl transition-all ${
+          ready
+            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-2xs'
+            : 'border-blue-600 text-blue-600 hover:bg-blue-50'
+        }`}
+        variant={ready ? "default" : "outline"}
         onClick={ready
           ? () => router.push(`/courses/${course?.courseId}${item.path}`)
           : GenerateContent
@@ -131,7 +147,7 @@ function MaterialCardItem({ item, studyTypeContent, course, refreshData, onGener
         disabled={loading}
       >
         {loading && <RefreshCcw className="animate-spin mr-2 w-4 h-4" />}
-        {loading ? 'Generating...' : ready ? 'View' : 'Generate'}
+        {loading ? 'Generating Content...' : ready ? `Open ${item.name}` : `Generate ${item.name}`}
       </Button>
     </div>
   );

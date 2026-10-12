@@ -45,8 +45,9 @@ function QuizCardItem({ quiz, userSelectedOption }) {
             disabled={!!selectedOption}
             className={`
               flex items-center gap-3 w-full text-left
-              border-2 rounded-xl px-4 py-3.5
+              border-2 rounded-xl px-4 py-3.5 min-h-[52px]
               transition-all duration-150 font-medium text-sm sm:text-base
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2
               ${getOptionStyle(option)}
             `}
           >

@@ -145,23 +145,23 @@ function Create() {
     const noCredits = credits !== null && credits <= 0;
 
     return (
-        <div className='flex flex-col items-center p-5 md:px-24 lg:px-36 mt-16'>
-            <h2 className='font-bold text-4xl text-primary text-center'>
-                Start Building Your Personal Study Material
+        <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 flex flex-col items-center">
+            <h2 className="font-extrabold text-2xl sm:text-3xl md:text-4xl text-gray-900 text-center tracking-tight">
+                Start Building Your <span className="text-blue-600">Study Material</span>
             </h2>
-            <p className='text-gray-500 text-lg text-center mt-2'>
-                Fill all details in order to generate comprehensive study material
+            <p className="text-gray-500 text-sm sm:text-base md:text-lg text-center mt-2 max-w-xl">
+                Fill in the details below to generate tailored notes, flashcards, and quizzes.
             </p>
 
             {/* Credit Status Badge */}
-            <div className="mt-4 flex items-center gap-2 px-4 py-1.5 bg-blue-50 border border-blue-200 rounded-full text-xs font-semibold text-blue-700">
+            <div className="mt-4 flex items-center gap-2 px-3.5 py-1.5 bg-blue-50 border border-blue-200 rounded-full text-xs font-semibold text-blue-700">
                 <Sparkles className="w-3.5 h-3.5 text-blue-600" />
                 <span>Available Credits: {credits !== null ? credits : '...'}</span>
             </div>
 
             {noCredits && (
-                <div className="mt-6 w-full max-w-md bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
-                    <p className="text-red-700 font-medium mb-3">
+                <div className="mt-8 w-full max-w-md bg-red-50 border border-red-200 rounded-2xl p-6 text-center shadow-xs">
+                    <p className="text-red-700 font-medium mb-3 text-sm sm:text-base">
                         You've used all your credits. Buy more to continue creating courses.
                     </p>
                     <Link href="/dashboard/upgrade">
@@ -175,7 +175,7 @@ function Create() {
 
             {!noCredits && (
                 <>
-                    <div className='mt-8'>
+                    <div className="w-full mt-8">
                         {step === 0
                             ? <SelectOption selectedStudyType={(v) => handleUserInput('studyType', v)} />
                             : <TopicInput
@@ -185,19 +185,35 @@ function Create() {
                         }
                     </div>
 
-                    <div className={`flex flex-col items-center w-full mt-28 ${step === 0 ? 'justify-center' : ''}`}>
-                        <div className={`flex justify-between w-full mb-6 ${step === 0 ? 'justify-center' : ''}`}>
-                            {step !== 0
-                                ? <Button onClick={() => setStep(s => s - 1)} variant="outline" disabled={loading}>Previous</Button>
-                                : <span />
-                            }
-                            {step === 0
-                                ? <Button onClick={() => setStep(1)}>Next</Button>
-                                : <Button onClick={GenerateCourseOutline} disabled={loading || courseCreated} className="bg-blue-600 hover:bg-blue-700 text-white">
-                                    {loading ? <Loader className="animate-spin mr-2" /> : null}
+                    <div className="w-full mt-8 sm:mt-10 flex flex-col items-center">
+                        <div className={`flex w-full gap-4 ${step === 0 ? 'justify-end' : 'justify-between'}`}>
+                            {step !== 0 && (
+                                <Button
+                                    onClick={() => setStep(s => s - 1)}
+                                    variant="outline"
+                                    disabled={loading}
+                                    className="min-h-[44px] px-6"
+                                >
+                                    Previous
+                                </Button>
+                            )}
+                            {step === 0 ? (
+                                <Button
+                                    onClick={() => setStep(1)}
+                                    className="min-h-[44px] px-8 bg-blue-600 hover:bg-blue-700 text-white"
+                                >
+                                    Next Step
+                                </Button>
+                            ) : (
+                                <Button
+                                    onClick={GenerateCourseOutline}
+                                    disabled={loading || courseCreated}
+                                    className="min-h-[44px] px-8 bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
+                                >
+                                    {loading ? <Loader className="animate-spin mr-2 w-4 h-4" /> : null}
                                     {loading ? 'Generating...' : 'Generate Course'}
-                                  </Button>
-                            }
+                                </Button>
+                            )}
                         </div>
 
                         {/* Real-time Progress Bar & Status */}

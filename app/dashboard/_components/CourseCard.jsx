@@ -112,10 +112,9 @@ function CourseCard({ course, onCourseDeleted, onCourseUpdated }) {
   const handleDeleteCancel = () => setShowDeleteConfirm(false);
 
   return (
-    <div className='border rounded-lg shadow-lg p-5 hover:shadow-2xl transition-shadow relative'>
-
+    <div className="bg-white border rounded-2xl shadow-xs hover:shadow-md transition-all duration-200 p-5 sm:p-6 relative flex flex-col justify-between group">
       {/* Top-right action buttons */}
-      <div className="absolute top-3 right-3 flex items-center gap-1">
+      <div className="absolute top-3 right-3 flex items-center gap-1 z-10">
         {/* Stop button — only while generating */}
         {isGenerating && (
           <Button
@@ -124,11 +123,12 @@ function CourseCard({ course, onCourseDeleted, onCourseUpdated }) {
             onClick={handleStopClick}
             disabled={isStopping}
             title="Stop generation"
-            className="p-2 text-orange-400 hover:text-orange-600 hover:bg-orange-50"
+            aria-label="Stop course generation"
+            className="h-8 w-8 p-0 text-orange-500 hover:text-orange-700 hover:bg-orange-50"
           >
             {isStopping
               ? <RefreshCcw className="w-4 h-4 animate-spin" />
-              : <Square className="w-4 h-4 fill-current" />
+              : <Square className="w-3.5 h-3.5 fill-current" />
             }
           </Button>
         )}
@@ -141,7 +141,8 @@ function CourseCard({ course, onCourseDeleted, onCourseUpdated }) {
             onClick={handleDeleteClick}
             disabled={isDeleting}
             title="Delete course"
-            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50"
+            aria-label="Delete course"
+            className="h-8 w-8 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
           >
             <Trash2 className="w-4 h-4" />
           </Button>
@@ -149,35 +150,66 @@ function CourseCard({ course, onCourseDeleted, onCourseUpdated }) {
       </div>
 
       <div>
-        <div className='flex justify-between items-center'>
-          <Image src={'/knowledge.png'} alt='others' width={50} height={50} />
-        </div>
-        <h2 className='mt-3 font-medium text-lg pr-16'>{courseTitle}</h2>
-        <p className='text-sm line-clamp-2 text-gray-500 mt-2'>{courseSummary}</p>
-        <div className='mt-3'>
-          <Progress value={30} />
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center p-2.5">
+            <Image src="/knowledge.png" alt="Course icon" width={36} height={36} className="object-contain" />
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {course?.courseType && (
+              <span className="text-[11px] font-semibold bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                {course.courseType}
+              </span>
+            )}
+            {course?.difficulty && (
+              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                course.difficulty === 'Easy' ? 'bg-green-100 text-green-700' :
+                course.difficulty === 'Hard' ? 'bg-red-100 text-red-700' :
+                'bg-amber-100 text-amber-700'
+              }`}>
+                {course.difficulty}
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Status badge / action */}
-        <div className='mt-3 flex justify-end'>
+        <h3 className="mt-3.5 font-bold text-base sm:text-lg text-gray-900 pr-8 leading-snug line-clamp-1">
+          {courseTitle}
+        </h3>
+        <p className="text-xs sm:text-sm line-clamp-2 text-gray-500 mt-1.5 leading-relaxed">
+          {courseSummary}
+        </p>
+      </div>
+
+      <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between">
+        {/* Status indicator */}
+        <div>
           {isGenerating && (
-            <span className='text-[12px] p-1 px-2 rounded-full bg-gray-400 text-white flex gap-2 items-center text-sm'>
-              <RefreshCcw className='w-4 h-4 animate-spin' />
+            <span className="text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1.5 font-medium">
+              <RefreshCcw className="w-3 h-3 animate-spin text-blue-600" />
               Generating...
             </span>
           )}
           {isCancelled && (
-            <span className='text-[12px] p-1 px-2 rounded-full bg-orange-100 text-orange-600 border border-orange-300 flex gap-2 items-center text-sm'>
-              <Square className='w-3 h-3 fill-current' />
+            <span className="text-xs px-2.5 py-1 rounded-full bg-orange-50 text-orange-700 border border-orange-200 flex items-center gap-1 font-medium">
+              <Square className="w-2.5 h-2.5 fill-current" />
               Cancelled
             </span>
           )}
           {!isGenerating && !isCancelled && (
-            <Link href={`/courses/${course.courseId}`}>
-              <Button>View</Button>
-            </Link>
+            <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium">
+              ✓ Ready
+            </span>
           )}
         </div>
+
+        {/* Action Button */}
+        {!isGenerating && !isCancelled && (
+          <Link href={`/courses/${course.courseId}`}>
+            <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs px-4 h-8 rounded-lg shadow-2xs">
+              View Course →
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* ── Stop Confirmation Modal ─────────────────────────────────────────── */}

@@ -261,7 +261,7 @@ function ProfilePage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Account ID
               </label>
-              <div className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg font-mono text-sm">
+              <div className="text-gray-900 bg-gray-50 px-3 py-2 rounded-xl font-mono text-xs sm:text-sm break-all">
                 {user.id}
               </div>
             </div>

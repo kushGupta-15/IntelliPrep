@@ -78,7 +78,7 @@ export default function AiTutorDrawer({ courseId, chapterTitle, contextNotes }) 
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-sm px-4 py-3 rounded-full shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-0.5"
+          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-sm px-4 py-3 rounded-full shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-0.5 print:hidden"
         >
           <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
           <span>Ask AI Tutor</span>
@@ -87,7 +87,15 @@ export default function AiTutorDrawer({ courseId, chapterTitle, contextNotes }) 
 
       {/* Slide-over Drawer / Side Panel */}
       {isOpen && (
-        <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-[440px] bg-white shadow-2xl flex flex-col border-l animate-in slide-in-from-right duration-300">
+        <>
+          {/* Overlay Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-2xs z-50 transition-opacity animate-in fade-in duration-200 print:hidden"
+            onClick={() => setIsOpen(false)}
+            aria-hidden="true"
+          />
+
+          <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-[440px] bg-white shadow-2xl flex flex-col border-l animate-in slide-in-from-right duration-300 print:hidden">
           {/* Header */}
           <div className="p-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -190,7 +198,8 @@ export default function AiTutorDrawer({ courseId, chapterTitle, contextNotes }) 
             </p>
           </div>
         </div>
-      )}
+      </>
+    )}
     </>
   );
 }

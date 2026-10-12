@@ -367,7 +367,7 @@ function Flashcard() {
                 </div>
 
                 {/* Dots indicator */}
-                <div className="flex justify-center gap-1.5 mt-6 flex-wrap">
+                <div className="flex justify-center gap-0.5 mt-6 flex-wrap" role="tablist" aria-label="Flashcard list">
                   {displayedCards.map((item, i) => {
                     const r = ratings[item.originalIndex];
                     let dotColor = 'bg-gray-300';
@@ -377,11 +377,16 @@ function Flashcard() {
                     return (
                       <button
                         key={i}
+                        role="tab"
+                        aria-selected={i === current - 1}
+                        aria-label={`Jump to card ${i + 1}`}
                         onClick={() => { api?.scrollTo(i); setIsFlipped(false); }}
-                        className={`rounded-full transition-all duration-200 ${
+                        className="p-1 min-w-[20px] min-h-[24px] flex items-center justify-center rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+                      >
+                        <span className={`rounded-full transition-all duration-200 block ${
                           i === current - 1 ? 'w-5 h-2 bg-blue-600' : `w-2 h-2 ${dotColor} hover:opacity-80`
-                        }`}
-                      />
+                        }`} />
+                      </button>
                     );
                   })}
                 </div>

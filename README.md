@@ -34,6 +34,14 @@ The application features user authentication via Clerk, real-time content genera
 - **Stored XSS Prevention**: AI-generated HTML notes are sanitized with `DOMPurify` (`isomorphic-dompurify`) before rendering to safeguard against script injection.
 - **Input Validation & Prompt Injection Guardrails**: Request payloads are strictly validated using Zod schemas with length limits and field constraints.
 
+## UI/UX & Responsive Architecture
+
+- **Strict Mobile-First Paradigm**: Fluid layout primitives and container boundaries that seamlessly adapt across 4 core viewports: Mobile (< 640px), Tablet (640px - 1024px), Desktop (1024px - 1440px), and Ultra-wide (> 1440px).
+- **Synchronized Breakpoint Navigation**: Unified header and sliding sidebar drawer synchronized at the `md` (768px) breakpoint with backdrop dismiss, eliminating duplicate headers on tablets and ensuring touch hit areas $\ge 44\text{px}$.
+- **WCAG Accessibility & Keyboard Navigation**: Full keyboard navigation across flashcards and quizzes (Space/Enter card flip, focus rings with `focus-visible`, explicit ARIA roles `role="button"`, `role="radiogroup"`, `role="tablist"`).
+- **Fluid Typography & Layout Shift (CLS) Prevention**: Aspect-ratio constrained hero images (`aspect-[3/2]`), fluid container sizing (`max-w-7xl`, `max-w-5xl`), and elimination of rigid pixel constraints.
+- **Unified Design Tokens**: Modern elevation scale, consistent rounded tokens (`rounded-2xl`), accessible color contrast ratios, and customized sleek scrollbars.
+
 ## Installation
 
 ### Prerequisites

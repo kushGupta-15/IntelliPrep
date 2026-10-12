@@ -210,21 +210,27 @@ function ViewNotes() {
             Back
           </Button>
 
-          {/* Chapter dots */}
-          <div className="flex items-center gap-1.5 flex-1 justify-center overflow-x-auto py-1">
+          {/* Chapter navigation tabs */}
+          <div className="flex items-center gap-0.5 flex-1 justify-center overflow-x-auto py-1 px-2" role="tablist" aria-label="Chapter navigation">
             {notes.map((_, i) => (
               <button
                 key={i}
+                role="tab"
+                aria-selected={i === stepCount}
+                aria-label={`Go to chapter ${i + 1}`}
                 onClick={() => setStepCount(i)}
-                className={`shrink-0 rounded-full transition-all duration-200 ${
-                  i === stepCount
-                    ? 'w-6 h-2.5 bg-blue-600'
-                    : i < stepCount
-                    ? 'w-2.5 h-2.5 bg-blue-300'
-                    : 'w-2.5 h-2.5 bg-gray-200 hover:bg-gray-300'
-                }`}
-                title={`Chapter ${i + 1}`}
-              />
+                className="min-h-[32px] min-w-[20px] flex items-center justify-center p-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              >
+                <span
+                  className={`rounded-full transition-all duration-200 block ${
+                    i === stepCount
+                      ? 'w-6 h-2.5 bg-blue-600'
+                      : i < stepCount
+                      ? 'w-2.5 h-2.5 bg-blue-300'
+                      : 'w-2.5 h-2.5 bg-gray-200 hover:bg-gray-300'
+                  }`}
+                />
+              </button>
             ))}
           </div>
 

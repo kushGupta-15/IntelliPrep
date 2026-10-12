@@ -4,12 +4,12 @@ import React, { useEffect, useState } from "react";
 import { UserButton } from "@clerk/clerk-react";
 import { cn } from "../../../lib/utils";
 import Image from "next/image";
-import { Bell, Search, ArrowLeft, User } from "lucide-react";
+import { Bell, Search, ArrowLeft, User, Menu } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 
-function DashboardHeader() {
+function DashboardHeader({ onOpenMobileMenu }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
@@ -32,38 +32,52 @@ function DashboardHeader() {
   return (
     <header
       className={cn(
-        "w-full top-0 z-40 sticky transition-all duration-300",
+        "w-full top-0 z-30 sticky transition-all duration-300",
         isScrolled
-          ? "bg-white/95 backdrop-blur-sm border-b py-3"
-          : "bg-transparent py-4"
+          ? "bg-white/95 backdrop-blur-md border-b shadow-xs py-3"
+          : "bg-white/70 backdrop-blur-xs border-b border-gray-100 py-3.5"
       )}
     >
       <div className="px-4 sm:px-6 lg:px-8 flex items-center justify-between max-w-[1600px] mx-auto">
-        {/* Logo Section */}
-        <div className="flex items-center gap-3">
+        {/* Left Section */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Mobile hamburger button */}
+          {onOpenMobileMenu && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onOpenMobileMenu}
+              className="md:hidden h-9 w-9 text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+              aria-label="Open sidebar menu"
+            >
+              <Menu className="w-5 h-5" />
+            </Button>
+          )}
+
           {/* Back to Dashboard button when on course page */}
           {isOnCoursePage && (
             <Button 
               onClick={handleBackToDashboard}
               variant="ghost" 
               size="sm"
-              className="flex items-center gap-2 hover:bg-gray-100 mr-2"
+              className="flex items-center gap-2 hover:bg-gray-100 mr-1 text-xs sm:text-sm font-medium"
             >
               <ArrowLeft className="w-4 h-4" />
               <span className="hidden sm:inline">Dashboard</span>
             </Button>
           )}
           
-          <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="relative w-10 h-10">
-              <div className="absolute inset-0 rounded-lg"></div>
-              <div className="absolute inset-[2px] bg-white rounded-md flex items-center justify-center">
-                <div className=" font-bold text-xl">
-                  <Image src={'/logo.svg'} alt="logo" height={40} width={40} className="lg:hidden"/>
-                </div>
-              </div>
+          <Link
+            href="/dashboard"
+            className={cn(
+              "flex items-center gap-2.5 transition-opacity hover:opacity-90",
+              onOpenMobileMenu ? "md:hidden" : "flex"
+            )}
+          >
+            <div className="relative w-9 h-9 shrink-0 flex items-center justify-center">
+              <Image src={'/logo.svg'} alt="IntelliPrep logo" height={36} width={36} priority />
             </div>
-            <span className="text-xl font-bold text-gray-900 hidden sm:inline lg:hidden">
+            <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
               IntelliPrep
             </span>
           </Link>

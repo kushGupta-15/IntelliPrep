@@ -260,22 +260,31 @@ export default function PublicSharedCourse() {
 
                 {/* Flip Card Container */}
                 <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setIsFlipped(f => !f)}
-                  className="w-full max-w-md h-64 sm:h-72 cursor-pointer perspective select-none"
+                  onKeyDown={(e) => {
+                    if (e.key === ' ' || e.key === 'Enter') {
+                      e.preventDefault();
+                      setIsFlipped(f => !f);
+                    }
+                  }}
+                  aria-label={isFlipped ? "Flashcard answer, press Enter or Space to flip back" : "Flashcard question, press Enter or Space to reveal answer"}
+                  className="w-full max-w-md min-h-[260px] sm:min-h-[290px] cursor-pointer select-none rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                 >
                   <div
-                    className={`relative w-full h-full rounded-2xl shadow-lg border p-8 flex flex-col items-center justify-center text-center transition-all duration-300 ${
+                    className={`relative w-full h-full min-h-[260px] sm:min-h-[290px] rounded-2xl shadow-md border p-6 sm:p-8 flex flex-col items-center justify-between text-center transition-all duration-300 ${
                       isFlipped ? "bg-white border-blue-200" : "bg-gradient-to-br from-blue-600 to-indigo-600 text-white"
                     }`}
                   >
-                    <span className={`text-xs uppercase tracking-widest font-bold mb-3 ${isFlipped ? "text-blue-600" : "text-blue-200"}`}>
+                    <span className={`text-xs uppercase tracking-widest font-bold px-2.5 py-0.5 rounded-full ${isFlipped ? "bg-blue-50 text-blue-600" : "bg-white/10 text-blue-200"}`}>
                       {isFlipped ? "Answer" : "Question"}
                     </span>
-                    <p className={`text-lg sm:text-xl font-semibold leading-relaxed ${isFlipped ? "text-gray-800" : "text-white"}`}>
+                    <p className={`text-base sm:text-lg md:text-xl font-semibold leading-relaxed my-4 overflow-y-auto max-h-[160px] w-full ${isFlipped ? "text-gray-800" : "text-white"}`}>
                       {isFlipped ? flashcards[cardIndex]?.back : flashcards[cardIndex]?.front}
                     </p>
-                    <span className={`text-xs mt-6 ${isFlipped ? "text-gray-400" : "text-blue-200"}`}>
-                      Tap to flip
+                    <span className={`text-xs ${isFlipped ? "text-gray-400" : "text-blue-200/80"}`}>
+                      Tap or press Enter to flip
                     </span>
                   </div>
                 </div>
