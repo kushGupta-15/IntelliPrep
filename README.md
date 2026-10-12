@@ -8,8 +8,12 @@ IntelliPrep is a Next.js application that uses artificial intelligence to create
 
 - **Structured Course Outlines**: Organized chapters with detailed summaries
 - **Interactive Notes & Inline Editing**: Structured notes with in-app edit mode and live preview, sanitized with DOMPurify
+- **In-Context AI Academic Tutor**: Floating AI tutor drawer answering questions grounded in the chapter notes with real-world analogies and examples
+- **Audio Narration & Text-to-Speech**: In-browser voice reader with variable playback speed (1x, 1.25x, 1.5x)
 - **Spaced Repetition System (SRS) Flashcards**: Leitner Box memory ratings (Again, Hard, Good, Easy), deck mastery analytics, and filterable review decks
+- **Export to Anki & Print PDF**: One-click download of flashcards in Anki/Quizlet CSV format and clean print-to-PDF export
 - **Persistent Quiz History & Analytics**: Automatic attempt tracking, best score progression, and question-by-question mistake reviews
+- **Public Study Links & Sharing**: Read-only public study links (`/share/[courseId]`) for collaborative learning without requiring sign-in or credits
 - **Dashboard Search, Filtering & Pagination**: Real-time topic search, multi-criteria filtering (study type, status, difficulty), and pagination
 - **Real-Time Generation Progress**: Live chapter-by-chapter generation tracking and progress percentage
 - **Credit Upgrade via Stripe**: Secure payment processing with Stripe for course credits

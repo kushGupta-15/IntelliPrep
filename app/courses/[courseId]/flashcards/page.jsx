@@ -153,6 +153,31 @@ function Flashcard() {
   const currentOriginalIndex = displayedCards[current - 1]?.originalIndex ?? 0;
   const currentRating = ratings[currentOriginalIndex];
 
+  const handleExportAnkiCsv = () => {
+    if (!allCards || allCards.length === 0) {
+      toast.error("No flashcards available to export.");
+      return;
+    }
+
+    const rows = allCards.map(card => {
+      const front = `"${(card.front || '').replace(/"/g, '""')}"`;
+      const back = `"${(card.back || '').replace(/"/g, '""')}"`;
+      return `${front},${back}`;
+    });
+
+    const csvContent = "Front,Back\n" + rows.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `intelliprep_flashcards_${String(courseId).slice(0, 8)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success("Deck exported for Anki & Quizlet!");
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -172,14 +197,23 @@ function Flashcard() {
             </div>
           </div>
           {allCards.length > 0 && (
-            <button
-              onClick={handleResetSRS}
-              className="text-xs text-gray-400 hover:text-gray-700 flex items-center gap-1 transition-colors"
-              title="Reset deck progress"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Reset
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleExportAnkiCsv}
+                className="text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 transition-colors"
+                title="Export deck as Anki / CSV file"
+              >
+                Export Deck
+              </button>
+              <button
+                onClick={handleResetSRS}
+                className="text-xs text-gray-400 hover:text-gray-700 flex items-center gap-1 transition-colors"
+                title="Reset deck progress"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reset
+              </button>
+            </div>
           )}
         </div>
       </div>

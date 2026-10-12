@@ -1,6 +1,8 @@
 "use client";
-import React from 'react';
-import { BookOpen, Layers, BarChart2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { BookOpen, Layers, BarChart2, Share2, Check } from 'lucide-react';
+import { Button } from '../../../../components/ui/button';
+import toast from 'react-hot-toast';
 
 const DIFFICULTY_COLOR = {
   Easy:     'bg-green-100 text-green-700',
@@ -17,6 +19,8 @@ const TYPE_EMOJI = {
 };
 
 function CourseIntroCard({ course }) {
+  const [copied, setCopied] = useState(false);
+
   let courseLayout = course?.courseLayout;
   if (typeof courseLayout === 'string') {
     try { courseLayout = JSON.parse(courseLayout); } catch { courseLayout = {}; }
@@ -29,24 +33,52 @@ function CourseIntroCard({ course }) {
   const courseType = course?.courseType || 'Other';
   const emoji      = courseLayout?.emoji || TYPE_EMOJI[courseType] || '📚';
 
+  const handleShare = () => {
+    if (typeof window !== 'undefined' && course?.courseId) {
+      const shareUrl = `${window.location.origin}/share/${course.courseId}`;
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        setCopied(true);
+        toast.success("Public study link copied to clipboard!");
+        setTimeout(() => setCopied(false), 3000);
+      }).catch(() => {
+        toast.error("Failed to copy link");
+      });
+    }
+  };
+
   return (
     <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
       {/* Gradient banner */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-5 sm:px-8 sm:py-6">
-        <div className="flex items-start gap-4">
-          <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-3xl shrink-0">
-            {emoji}
-          </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-white font-bold text-xl sm:text-2xl leading-snug">{title}</h1>
-            <div className="flex flex-wrap items-center gap-2 mt-2">
-              <span className="text-blue-100 text-sm">{courseType}</span>
-              <span className="text-blue-300">·</span>
-              <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${DIFFICULTY_COLOR[difficulty] || 'bg-blue-100 text-blue-700'}`}>
-                {difficulty}
-              </span>
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-3xl shrink-0">
+              {emoji}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-white font-bold text-xl sm:text-2xl leading-snug">{title}</h1>
+              <div className="flex flex-wrap items-center gap-2 mt-2">
+                <span className="text-blue-100 text-sm">{courseType}</span>
+                <span className="text-blue-300">·</span>
+                <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${DIFFICULTY_COLOR[difficulty] || 'bg-blue-100 text-blue-700'}`}>
+                  {difficulty}
+                </span>
+              </div>
             </div>
           </div>
+
+          {/* Share Button */}
+          {course?.courseId && (
+            <Button
+              onClick={handleShare}
+              variant="outline"
+              size="sm"
+              className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs font-semibold flex items-center gap-1.5 shrink-0 self-start mt-1"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-green-300" /> : <Share2 className="w-3.5 h-3.5" />}
+              {copied ? "Link Copied" : "Share Course"}
+            </Button>
+          )}
         </div>
       </div>
 

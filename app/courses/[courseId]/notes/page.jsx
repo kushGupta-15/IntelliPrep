@@ -1,12 +1,13 @@
 "use client";
 
 import axios from 'axios';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '../../../../components/ui/button';
-import { ChevronLeft, ChevronRight, ArrowLeft, BookOpen, CheckCircle, Edit3, Save, X, Eye } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowLeft, BookOpen, CheckCircle, Edit3, Save, X, Eye, Volume2, VolumeX, Printer, Pause, Play } from 'lucide-react';
 import DOMPurify from 'isomorphic-dompurify';
 import toast from 'react-hot-toast';
+import AiTutorDrawer from './_components/AiTutorDrawer';
 
 function ViewNotes() {
   const { courseId } = useParams();
@@ -18,8 +19,14 @@ function ViewNotes() {
   // Inline Note Editing state
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState("");
-  const [previewTab, setPreviewTab] = useState(false); // false = edit, true = preview
+  const [previewTab, setPreviewTab] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Audio / TTS state
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [isPausedAudio, setIsPausedAudio] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const utteranceRef = useRef(null);
 
   useEffect(() => {
     const fetchNotes = async () => {
@@ -39,13 +46,97 @@ function ViewNotes() {
     fetchNotes();
   }, [courseId]);
 
-  // When step changes, exit edit mode
+  // Clean up audio speech synthesis on unmount or chapter change
   useEffect(() => {
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      setIsPlayingAudio(false);
+      setIsPausedAudio(false);
+    }
     setIsEditing(false);
     setPreviewTab(false);
   }, [stepCount]);
 
+  const toggleAudioNarration = () => {
+    if (typeof window === "undefined" || !window.speechSynthesis) {
+      toast.error("Speech synthesis is not supported on your browser.");
+      return;
+    }
+
+    // If currently paused, resume
+    if (isPausedAudio) {
+      window.speechSynthesis.resume();
+      setIsPausedAudio(false);
+      setIsPlayingAudio(true);
+      return;
+    }
+
+    // If playing, pause
+    if (isPlayingAudio) {
+      window.speechSynthesis.pause();
+      setIsPausedAudio(true);
+      setIsPlayingAudio(false);
+      return;
+    }
+
+    // Otherwise, start from beginning of current chapter notes
+    window.speechSynthesis.cancel();
+    const rawHtml = notes[stepCount]?.notes || "";
+    // Cleanly strip HTML tags for smooth audio narration
+    const textToSpeak = rawHtml
+      .replace(/<[^>]*>?/gm, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!textToSpeak) {
+      toast.error("No text available to narrate.");
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+    utterance.rate = playbackRate;
+    utterance.pitch = 1.0;
+
+    utterance.onend = () => {
+      setIsPlayingAudio(false);
+      setIsPausedAudio(false);
+    };
+
+    utterance.onerror = (e) => {
+      console.warn("Speech synthesis error:", e);
+      setIsPlayingAudio(false);
+      setIsPausedAudio(false);
+    };
+
+    utteranceRef.current = utterance;
+    window.speechSynthesis.speak(utterance);
+    setIsPlayingAudio(true);
+    setIsPausedAudio(false);
+  };
+
+  const stopAudio = () => {
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      setIsPlayingAudio(false);
+      setIsPausedAudio(false);
+    }
+  };
+
+  const handleRateChange = (newRate) => {
+    setPlaybackRate(newRate);
+    if (isPlayingAudio || isPausedAudio) {
+      stopAudio();
+      toast.success(`Speed set to ${newRate}x. Press Play to listen.`);
+    }
+  };
+
+  const handlePrintPdf = () => {
+    window.print();
+  };
+
   const handleStartEditing = () => {
+    stopAudio();
     setEditedContent(notes[stepCount]?.notes || "");
     setIsEditing(true);
     setPreviewTab(false);
@@ -110,9 +201,9 @@ function ViewNotes() {
   const isLast = stepCount === notes.length - 1;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Top bar */}
-      <div className="sticky top-0 z-10 bg-white border-b shadow-sm">
+    <div className="min-h-screen bg-gray-50 print:bg-white print:p-0">
+      {/* Top bar - Hidden when printing */}
+      <div className="sticky top-0 z-10 bg-white border-b shadow-sm print:hidden">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <Button variant="ghost" size="sm" onClick={() => router.back()} className="text-gray-600 hover:text-gray-900 shrink-0">
             <ArrowLeft className="h-4 w-4 mr-1" />
@@ -137,17 +228,85 @@ function ViewNotes() {
             ))}
           </div>
 
-          <span className="text-sm text-gray-400 shrink-0 font-medium">
-            {stepCount + 1} / {notes.length}
-          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePrintPdf}
+              title="Print or Save as PDF"
+              className="text-xs flex items-center gap-1 text-gray-700"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Export PDF</span>
+            </Button>
+            <span className="text-xs text-gray-400 font-medium ml-1">
+              {stepCount + 1} / {notes.length}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Audio Narration Bar - Hidden when printing */}
+      <div className="bg-blue-50/80 border-b border-blue-100 py-2 px-4 print:hidden">
+        <div className="max-w-4xl mx-auto flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2 text-blue-900 font-medium">
+            <Volume2 className="w-4 h-4 text-blue-600" />
+            <span>AI Audio Reader:</span>
+            <span className="text-blue-600 font-bold truncate max-w-[200px] sm:max-w-xs">
+              Chapter {stepCount + 1}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleAudioNarration}
+              className="flex items-center gap-1 px-3 py-1 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors"
+            >
+              {isPlayingAudio ? (
+                <>
+                  <Pause className="w-3 h-3" /> Pause
+                </>
+              ) : isPausedAudio ? (
+                <>
+                  <Play className="w-3 h-3" /> Resume
+                </>
+              ) : (
+                <>
+                  <Play className="w-3 h-3" /> Listen
+                </>
+              )}
+            </button>
+            {(isPlayingAudio || isPausedAudio) && (
+              <button
+                onClick={stopAudio}
+                className="p-1 rounded-full hover:bg-blue-200 text-blue-800 transition-colors"
+                title="Stop audio"
+              >
+                <VolumeX className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <div className="hidden sm:flex items-center gap-1 text-gray-500 pl-2">
+              <span className="text-[10px]">Speed:</span>
+              {[1, 1.25, 1.5].map((rate) => (
+                <button
+                  key={rate}
+                  onClick={() => handleRateChange(rate)}
+                  className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                    playbackRate === rate ? 'bg-blue-200 text-blue-900' : 'hover:bg-blue-100 text-blue-700'
+                  }`}
+                >
+                  {rate}x
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+      <div className="max-w-4xl mx-auto px-4 py-8 print:p-0 print:max-w-none">
+        <div className="bg-white rounded-2xl shadow-sm border overflow-hidden print:border-none print:shadow-none">
           {/* Chapter header strip */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-4 flex items-center justify-between">
+          <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-4 flex items-center justify-between print:hidden">
             <div className="flex items-center gap-2">
               <span className="bg-white/20 text-white text-xs font-bold px-2.5 py-1 rounded-full">
                 Chapter {stepCount + 1}
@@ -194,9 +353,9 @@ function ViewNotes() {
           </div>
 
           {/* Notes content / editor */}
-          <div className="px-6 py-8 md:px-10 md:py-10">
+          <div className="px-6 py-8 md:px-10 md:py-10 print:p-0">
             {isEditing && !previewTab ? (
-              <div className="space-y-3">
+              <div className="space-y-3 print:hidden">
                 <div className="flex items-center justify-between text-xs text-gray-500">
                   <span>Edit your notes (HTML or plain text supported):</span>
                   <span>Sanitized with DOMPurify on save</span>
@@ -233,8 +392,8 @@ function ViewNotes() {
           </div>
         </div>
 
-        {/* Navigation */}
-        <div className="flex items-center justify-between mt-6 gap-4">
+        {/* Navigation - Hidden when printing */}
+        <div className="flex items-center justify-between mt-6 gap-4 print:hidden">
           <Button
             variant="outline"
             onClick={() => setStepCount(s => Math.max(0, s - 1))}
@@ -267,7 +426,7 @@ function ViewNotes() {
 
         {/* Completion banner */}
         {isLast && (
-          <div className="mt-6 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-6 text-center">
+          <div className="mt-6 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-6 text-center print:hidden">
             <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
               <CheckCircle className="w-6 h-6 text-green-600" />
             </div>
@@ -279,6 +438,13 @@ function ViewNotes() {
           </div>
         )}
       </div>
+
+      {/* Grounded In-Context AI Academic Tutor Drawer */}
+      <AiTutorDrawer
+        courseId={courseId}
+        chapterTitle={`Chapter ${stepCount + 1}`}
+        contextNotes={notes[stepCount]?.notes}
+      />
     </div>
   );
 }
