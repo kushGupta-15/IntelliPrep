@@ -1,140 +1,489 @@
-# IntelliPrep
+# IntelliPrep — Enterprise AI-Powered Adaptive Learning & Study Suite
 
-An AI-powered study material generator that transforms any topic into comprehensive learning resources including structured notes, interactive flashcards, and quizzes.
+> **Transform any concept, syllabus, or topic into production-grade structured study outlines, interactive HTML chapter notes, spaced repetition flashcard decks, and self-grading quizzes in seconds.**
 
-## Description
+[![Next.js](https://img.shields.io/badge/Next.js-15.1.9-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react)](https://react.dev/)
+[![Google Gemini](https://img.shields.io/badge/Google%20Gemini-3.5%20Flash-4285F4?style=for-the-badge&logo=google)](https://ai.google.dev/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon%20Serverless-336791?style=for-the-badge&logo=postgresql)](https://neon.tech/)
+[![Drizzle ORM](https://img.shields.io/badge/Drizzle%20ORM-0.40.0-C5F74F?style=for-the-badge&logo=drizzle)](https://orm.drizzle.team/)
+[![Inngest](https://img.shields.io/badge/Inngest-Background%20Jobs-000212?style=for-the-badge&logo=inngest)](https://www.inngest.com/)
+[![Clerk](https://img.shields.io/badge/Auth-Clerk-6C47FF?style=for-the-badge&logo=clerk)](https://clerk.com/)
+[![Stripe](https://img.shields.io/badge/Payments-Stripe-008CDD?style=for-the-badge&logo=stripe)](https://stripe.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4.1-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
+[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](#license)
 
-IntelliPrep is a Next.js application that uses artificial intelligence to create personalized study materials. Users can input any topic and difficulty level, and the system generates:
+---
 
-- **Structured Course Outlines**: Organized chapters with detailed summaries
-- **Interactive Notes & Inline Editing**: Structured notes with in-app edit mode and live preview, sanitized with DOMPurify
-- **In-Context AI Academic Tutor**: Floating AI tutor drawer answering questions grounded in the chapter notes with real-world analogies and examples
-- **Audio Narration & Text-to-Speech**: In-browser voice reader with variable playback speed (1x, 1.25x, 1.5x)
-- **Spaced Repetition System (SRS) Flashcards**: Leitner Box memory ratings (Again, Hard, Good, Easy), deck mastery analytics, and filterable review decks
-- **Export to Anki & Print PDF**: One-click download of flashcards in Anki/Quizlet CSV format and clean print-to-PDF export
-- **Persistent Quiz History & Analytics**: Automatic attempt tracking, best score progression, and question-by-question mistake reviews
-- **Public Study Links & Sharing**: Read-only public study links (`/share/[courseId]`) for collaborative learning without requiring sign-in or credits
-- **Dashboard Search, Filtering & Pagination**: Real-time topic search, multi-criteria filtering (study type, status, difficulty), and pagination
-- **Real-Time Generation Progress**: Live chapter-by-chapter generation tracking and progress percentage
-- **Credit Upgrade via Stripe**: Secure payment processing with Stripe for course credits
+## 📌 Executive Summary
 
-The application features user authentication via Clerk, real-time content generation status updates, and a responsive design that works across all devices.
+**IntelliPrep** is an autonomous, full-stack educational engine built for students, professionals, and educators. It combines **Google Gemini 3.5 Flash**, **Next.js 15 App Router**, **Drizzle ORM**, **Neon Serverless PostgreSQL**, and **Inngest asynchronous pipelines** to automate the creation of pedagogically sound study materials.
 
-## Security & Architecture
+Users provide a target topic, syllabus, or raw notes along with a difficulty curve. IntelliPrep orchestrates background workers to generate modular chapter notes, an interactive in-context **AI Academic Tutor**, variable-speed **Text-to-Speech (TTS) narration**, **Leitner-style Spaced Repetition (SRS) flashcards**, self-grading **assessment quizzes**, and **Anki/Quizlet export packs**.
 
-- **Server-Side Session Authentication**: All API endpoints authenticate requests server-side via Clerk (`auth()` / `currentUser()`). User identity is never trusted from client request bodies.
-- **IDOR Protection**: Strict ownership validation on all course resources—users can only view, generate content for, cancel, or delete their own study materials.
-- **Atomic Server-Side Credit Billing**: Credit checks and deductions occur atomically on the server before invoking AI generation, eliminating client-side credit bypasses.
-- **Atomic Database Transactions**: Multi-table deletions, cancellations, and credit refunds are wrapped in `db.transaction()` to ensure all-or-nothing consistency without orphaned rows.
-- **Soft Delete Pattern & Instant Undo**: Course deletions default to soft deletion (`deletedAt: timestamp`), preventing accidental data loss while offering one-click undo restoration and optional permanent purge.
-- **Dual-Layer Rate Limiting & DoS Protection**: 
-  - *Layer 1 (Edge Middleware)*: Global flood protection limiting general API traffic per IP address.
-  - *Layer 2 (Route-Level)*: Sliding-window token limits on compute-intensive operations (AI course generation, study content creation, and Stripe checkout sessions).
-- **High-Performance Database Indexing**: Dedicated B-Tree indexes on query-intensive columns (`createdBy`, `courseId`, `email`, `deleted_at`) and composite indexes (`(courseId, type)`) for fast, optimized queries.
-- **Stored XSS Prevention**: AI-generated HTML notes are sanitized with `DOMPurify` (`isomorphic-dompurify`) before rendering to safeguard against script injection.
-- **Input Validation & Prompt Injection Guardrails**: Request payloads are strictly validated using Zod schemas with length limits and field constraints.
+---
 
-## UI/UX & Responsive Architecture
+## 🏗️ System Architecture
 
-- **Strict Mobile-First Paradigm**: Fluid layout primitives and container boundaries that seamlessly adapt across 4 core viewports: Mobile (< 640px), Tablet (640px - 1024px), Desktop (1024px - 1440px), and Ultra-wide (> 1440px).
-- **Synchronized Breakpoint Navigation**: Unified header and sliding sidebar drawer synchronized at the `md` (768px) breakpoint with backdrop dismiss, eliminating duplicate headers on tablets and ensuring touch hit areas $\ge 44\text{px}$.
-- **WCAG Accessibility & Keyboard Navigation**: Full keyboard navigation across flashcards and quizzes (Space/Enter card flip, focus rings with `focus-visible`, explicit ARIA roles `role="button"`, `role="radiogroup"`, `role="tablist"`).
-- **Fluid Typography & Layout Shift (CLS) Prevention**: Aspect-ratio constrained hero images (`aspect-[3/2]`), fluid container sizing (`max-w-7xl`, `max-w-5xl`), and elimination of rigid pixel constraints.
-- **Unified Design Tokens**: Modern elevation scale, consistent rounded tokens (`rounded-2xl`), accessible color contrast ratios, and customized sleek scrollbars.
+IntelliPrep is architected around a tiered, decoupled paradigm ensuring sub-second client reactivity, resilient background workflows, and robust zero-trust security.
 
-## Installation
+```mermaid
+graph TD
+    subgraph Client_Tier["Client Tier (Next.js 15 App Router / React 18)"]
+        UI["Landing Page / Dashboard / Course Studio"]
+        Reader["Audio TTS Reader / PDF Print Engine"]
+        TutorDrawer["AI Academic Tutor Slide-Over Drawer"]
+        SRS["Spaced Repetition Flashcards (Leitner 4-Tier)"]
+        QuizUI["Interactive Quiz Engine & Past Attempts"]
+        ShareUI["Public Share Portal (/share/[courseId])"]
+        Context["CourseCountContext & LocalStorage SRS"]
+    end
+
+    subgraph Security_Tier["Edge Security & Middleware Tier"]
+        MW["Next.js Middleware (clerkMiddleware)"]
+        RateLimit["Sliding Window Rate Limiter (Edge In-Memory)"]
+        AuthGuard["Route Matcher & Protected Route Shield"]
+    end
+
+    subgraph API_Tier["Application & API Server Tier (Node.js)"]
+        AuthHelper["Server Auth Guard (getAuthenticatedUser / IDOR Shield)"]
+        CourseAPI["Course Outline & Status API (/api/generate-course-outline)"]
+        TutorAPI["Academic Tutor API (/api/ai/tutor)"]
+        NotesAPI["Chapter Notes & DOMPurify Sanitizer (/api/courses/notes/*)"]
+        QuizAPI["Quiz Attempt & Analytics API (/api/quiz/attempt)"]
+        PaymentAPI["Stripe Order & Verification API (/api/payment/*)"]
+        InngestAPI["Inngest Background Webhook Handler (/api/inngest)"]
+    end
+
+    subgraph Background_Tier["Background Execution Tier (Inngest Serverless)"]
+        EventBus["Inngest Event Bus & Trigger Engine"]
+        JobNotes["GenerateNotes Function (Stepwise Chapter Pipeline)"]
+        JobContent["GenerateStudyTypeContent (Flashcards & Quizzes)"]
+        RetryEngine["Automatic Rate-Limit Backoff (429 Retries)"]
+    end
+
+    subgraph External_Services["External Services & Providers"]
+        Clerk["Clerk Authentication (Session Tokens & User Store)"]
+        Gemini["Google Gemini Generative AI (3.5-Flash-Lite / 3.8-Flash)"]
+        Stripe["Stripe Payments (Checkout & Webhook Events)"]
+    end
+
+    subgraph Storage_Tier["Database & Persistence Tier"]
+        Drizzle["Drizzle ORM Engine"]
+        NeonDB[("Neon Serverless PostgreSQL")]
+        SQLiteFallback[("Local SQLite / LibSQL Fallback")]
+        
+        subgraph Tables["Relational Schema & Indexes"]
+            T_Users["users (Credits, Membership)"]
+            T_Material["studyMaterial (Soft-Delete, Status)"]
+            T_Notes["ChapterNotes (Structured HTML)"]
+            T_Content["studyTypeContent (Flashcards & Quizzes)"]
+            T_Attempts["quizAttempts (Scores, Answer History)"]
+        end
+    end
+
+    %% Client Interactions
+    UI --> MW
+    TutorDrawer --> MW
+    QuizUI --> MW
+    SRS --> Context
+    ShareUI --> CourseAPI
+
+    %% Middleware & Security
+    MW --> RateLimit
+    MW --> AuthGuard
+    AuthGuard --> AuthHelper
+
+    %% API Routing
+    AuthHelper --> CourseAPI
+    AuthHelper --> TutorAPI
+    AuthHelper --> NotesAPI
+    AuthHelper --> QuizAPI
+    AuthHelper --> PaymentAPI
+    InngestAPI --> EventBus
+
+    %% External Connections
+    AuthHelper -.->|Validate JWT| Clerk
+    CourseAPI -.->|Generate Outline| Gemini
+    TutorAPI -.->|Grounded RAG Prompt| Gemini
+    PaymentAPI -.->|Checkout Session| Stripe
+    Stripe -.->|Webhook Events| PaymentAPI
+
+    %% Background Jobs
+    CourseAPI -->|Trigger notes.generate| EventBus
+    EventBus --> JobNotes
+    EventBus --> JobContent
+    JobNotes --> RetryEngine
+    RetryEngine -.->|Iterative Chapter Prompts| Gemini
+    JobContent -.->|Generate Cards & Quizzes| Gemini
+
+    %% Database Operations
+    CourseAPI --> Drizzle
+    NotesAPI --> Drizzle
+    QuizAPI --> Drizzle
+    PaymentAPI --> Drizzle
+    JobNotes --> Drizzle
+    JobContent --> Drizzle
+
+    Drizzle --> NeonDB
+    Drizzle -.->|Fallback| SQLiteFallback
+    NeonDB --- Tables
+    SQLiteFallback --- Tables
+```
+
+### Architectural Data Flow:
+1. **Course Ingestion**: The client submits topic parameters to `/api/generate-course-outline`.
+2. **Atomic Verification**: Edge middleware enforces rate limits. The server checks user credits in an atomic database transaction (`db.transaction()`), writes an initial outline record (`Generating`), and fires an Inngest event.
+3. **Stepwise Background Generation**: Inngest processes chapters iteratively, employing exponential backoff on HTTP 429 status codes. Content is stored in `ChapterNotes`, and course status shifts to `Ready`.
+4. **Client Polling & Event Delivery**: The client polls `/api/courses/status` using an exponential backoff hook until 100% completion is reached.
+5. **Interactive Exploration**: The user studies chapter notes, engages with the grounded AI Academic Tutor, trains using the 4-tier SRS Leitner flashcard deck, or evaluates retention via self-grading quizzes.
+
+---
+
+## 🌟 Comprehensive Features Matrix
+
+### 1. Intelligent Course Studio
+- **Dynamic Syllabus Generation**: Automatically decomposes complex topics into 4–6 cohesive chapters with detailed sub-topics and descriptive summaries.
+- **Difficulty Curve Tuning**: Tailor materials between `Easy` (foundational analogies), `Moderate` (balanced theory and practical application), and `Hard` (rigorous technical edge-cases and formulas).
+- **Target Category Profiles**: Specific prompt optimizations for `Exam Prep`, `Job Interview`, `Practice Drill`, `Coding Prep`, and `General Knowledge`.
+- **Live Generation Streaming**: Real-time progress percentage bar with chapter-by-chapter status messaging and in-flight cancellation controls.
+
+### 2. Interactive Study Notes & Academic Tutor
+- **Semantic HTML Formatting**: Richly formatted chapter notes with clean typography, code snippets, definition lists, and key takeaways.
+- **Inline Note Editor**: Native in-app edit mode with live preview tab, empowering users to add personal annotations.
+- **Stored XSS Sanitization**: All content is sanitized through `DOMPurify` (`isomorphic-dompurify`) before database persistence and client rendering.
+- **In-Context AI Academic Tutor**: Side-drawer tutor grounded in the current chapter's notes. Pre-configured with one-click prompts:
+  - *Analogy*: Deconstructs abstract concepts using real-world intuition.
+  - *Example*: Illustrates practical application.
+  - *Key Points*: Summarizes core takeaways in concise bullet points.
+  - *Quiz Me*: Challenges the learner with targeted conceptual questions.
+- **Audio Voice Reader (TTS)**: Built-in speech synthesis engine with instant Play/Pause/Resume and dynamic playback rates ($1\times$, $1.25\times$, $1.5\times$).
+- **One-Click PDF Print Engine**: Custom `@media print` styles strip away headers, sidebars, and controls to generate clean, printable revision handouts.
+
+### 3. Spaced Repetition (SRS) Flashcards
+- **Leitner Memory Framework**: 4-tier recall grading system:
+  - 🔴 **Again**: Resets interval for immediate review.
+  - 🟠 **Hard**: Shorter retention interval.
+  - 🟢 **Good**: Standard spaced progression.
+  - 🔵 **Easy**: Mastered milestone.
+- **Deck Mastery Analytics**: Real-time progress bar computing overall deck mastery percentage.
+- **Segmented Review Filtering**: Filter cards on demand between *All Cards*, *To Review (In Learning)*, and *Mastered*.
+- **3D Card Flip Animation**: Smooth CSS 3D perspective flip with complete keyboard accessibility (`Space` / `Enter` controls).
+- **Anki & Quizlet CSV Export**: Export any generated flashcard deck directly into standard two-column CSV format for external SRS mobile apps.
+
+### 4. Interactive Assessment & Quiz Engine
+- **Multiple-Choice Knowledge Checks**: Algorithmic question generation with randomized distractors and unambiguous answer keys.
+- **Immediate Visual Feedback**: Instant green/red validation upon option selection.
+- **Mistake Breakdown Mode**: Question-by-question review mode highlighting chosen vs. correct answers.
+- **Persistent Quiz History**: Attempts are recorded in `quizAttempts` with scores, timestamps, and accuracy percentages.
+- **Personal Best Tracking**: Highlights the user's best historical score on the quiz dashboard.
+
+### 5. Social Learning & Public Study Hub
+- **Zero-Auth Public Sharing**: Generate unique public links (`/share/[courseId]`) to share complete courses with peers or study groups.
+- **Read-Only Unified Portal**: Recipients can access chapter notes, flip flashcards, and take quizzes without creating an account or expending credits.
+- **One-Click Clipboard Integration**: Instant toast feedback when copying course links.
+
+### 6. Dashboard Library & Management
+- **Instant Search & Querying**: Real-time keyword search indexing course titles, topics, and chapter summaries.
+- **Multi-Criteria Filtering**: Filter by study type, generation status (`Ready`, `Generating`, `Cancelled`), and difficulty level.
+- **Compact Pagination**: Smooth page transitions displaying 6 items per page.
+- **Soft Delete & 1-Click Undo**: Deleted courses are marked with `deletedAt: timestamp`. An undo toast notification permits 6-second recovery before permanent purge.
+
+### 7. Credit Billing & Stripe Integration
+- **Prepaid Credit Tier Packages**:
+  - *Basic*: 10 Credits (₹99)
+  - *Pro*: 25 Credits (₹199 — Most Popular)
+  - *Premium*: 50 Credits (₹349 — Best Value)
+- **Stripe Hosted Checkout**: Secure checkout redirection powered by Stripe Checkout.
+- **Cryptographic Webhook Handlers**: Idempotent signature verification (`whsec_...`) and client verification fallback (`/api/payment/verify`).
+
+---
+
+## 🛡️ Enterprise Security & Hardening
+
+| Security Layer | Implementation Mechanism | Threat Mitigated |
+|---|---|---|
+| **Zero-Trust Auth** | Clerk server-side `currentUser()` verification across all private endpoints | Client spoofing, forged session cookies |
+| **IDOR Protection** | Strict database ownership comparison (`createdBy === user.email`) | Insecure Direct Object References |
+| **Server-Side Billing** | Credits verified and deducted inside atomic database transactions | Race conditions, double-spend vulnerabilities |
+| **Dual-Layer Rate Limiting** | **Layer 1**: Edge IP flood shield (100 req/min).<br>**Layer 2**: Per-user sliding-window limits on compute-heavy routes | Denial-of-Service (DoS), API abuse, scrapers |
+| **Stored XSS Defense** | Strict HTML DOMPurify sanitization before saving modified notes | Malicious script execution, DOM hijacking |
+| **Input Validation** | Zod schemas with length limits and type enforcement | Buffer overruns, malformed JSON injections |
+| **High-Performance Indexes** | B-Tree indexes on `createdBy`, `courseId`, `email`, `deleted_at`, and `(courseId, type)` | Slow query DoS, database table scans |
+
+---
+
+## 💻 Tech Stack Breakdown
+
+### Frontend Tier
+- **Framework**: [Next.js 15.1.9](https://nextjs.org/) (App Router, Server & Client Components)
+- **Library**: [React 18](https://react.dev/)
+- **Styling**: [Tailwind CSS 3.4.1](https://tailwindcss.com/) + [tailwindcss-animate](https://www.npmjs.com/package/tailwindcss-animate)
+- **Component Primitives**: [Radix UI](https://www.radix-ui.com/) (Progress, Select, Slot)
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **Animations**: [Framer Motion 12](https://www.framer.com/motion/) & [React Card Flip](https://www.npmjs.com/package/react-card-flip)
+- **Notifications**: [React Hot Toast](https://react-hot-toast.com/) & [Sonner](https://sonner.emilkowal.ski/)
+- **Sanitization**: [isomorphic-dompurify](https://www.npmjs.com/package/isomorphic-dompurify)
+
+### Backend & API Tier
+- **Runtime**: Node.js 18+ / Edge Runtime
+- **Authentication**: [@clerk/nextjs 6.12](https://clerk.com/)
+- **AI Orchestration**: [@google/genai](https://www.npmjs.com/package/@google/genai) (`gemini-3.5-flash-lite`, `gemini-3.8-flash`, `gemini-3.7-flash`)
+- **Background Jobs**: [Inngest 4.2](https://www.inngest.com/)
+- **Payments**: [Stripe Node SDK 23](https://stripe.com/)
+
+### Database Tier
+- **Primary Database**: [Neon Serverless PostgreSQL](https://neon.tech/) (`@neondatabase/serverless`)
+- **Local Fallback**: [LibSQL / SQLite](https://github.com/tursodatabase/libsql-client-ts) (`@libsql/client`)
+- **ORM & Migrations**: [Drizzle ORM 0.40](https://orm.drizzle.team/) & [Drizzle Kit 0.30](https://orm.drizzle.team/kit-docs/overview)
+
+---
+
+## 📁 Repository Directory Structure
+
+```text
+IntelliPrep/
+├── app/
+│   ├── (auth)/
+│   │   ├── sign-in/[[...sign-in]]/page.jsx       # Clerk hosted Sign-In route
+│   │   └── sign-up/[[...sign-up]]/page.jsx       # Clerk hosted Sign-Up route
+│   ├── _context/
+│   │   └── CourseCountContext.jsx                # Global credits & course count context
+│   ├── _hooks/
+│   │   └── useCoursePolling.js                   # Exponential-backoff course status hook
+│   ├── api/
+│   │   ├── ai/tutor/route.js                     # Grounded Gemini Academic Tutor API
+│   │   ├── courses/
+│   │   │   ├── cancel/route.js                   # Stop in-flight generation
+│   │   │   ├── delete/route.js                   # Soft delete & restore endpoint
+│   │   │   ├── notes/update/route.js             # Sanitized inline notes editor API
+│   │   │   ├── public/route.js                   # Zero-auth public course fetcher
+│   │   │   ├── status/route.js                   # Real-time progress status polling
+│   │   │   └── route.js                          # Course index & listing
+│   │   ├── create-user/route.js                  # User provisioning endpoint
+│   │   ├── generate-course-outline/route.js      # Course creation & syllabus generator
+│   │   ├── inngest/route.js                      # Inngest serverless event handler
+│   │   ├── payment/
+│   │   │   ├── create-order/route.js             # Stripe Checkout session creator
+│   │   │   ├── verify/route.js                   # Checkout session verification
+│   │   │   └── webhook/route.js                  # Cryptographic Stripe webhook listener
+│   │   ├── quiz/attempt/route.js                 # Quiz scoring & attempt recorder
+│   │   ├── study-type/route.js                   # Course study material fetcher
+│   │   ├── study-type-content/route.js           # Flashcard & quiz generation trigger
+│   │   └── user/
+│   │       ├── credits/route.js                  # Credit balance retriever
+│   │       └── deduct-credit/route.js            # Atomic credit decrement
+│   ├── courses/
+│   │   ├── [courseId]/
+│   │   │   ├── _components/
+│   │   │   │   ├── ChapterList.jsx               # Syllabus & topic tag list
+│   │   │   │   ├── CourseIntroCard.jsx           # Overview banner & public link copy
+│   │   │   │   ├── MaterialCardItem.jsx          # Flashcard/Notes/Quiz card trigger
+│   │   │   │   └── StudyMaterialSection.jsx      # Materials status section
+│   │   │   ├── flashcards/
+│   │   │   │   ├── _components/FlashcardItem.jsx # 3D Flip Card with keyboard controls
+│   │   │   │   └── page.jsx                      # Spaced Repetition Flashcard studio
+│   │   │   ├── notes/
+│   │   │   │   ├── _components/AiTutorDrawer.jsx # Grounded AI Academic Tutor drawer
+│   │   │   │   └── page.jsx                      # Notes viewer, editor & TTS reader
+│   │   │   ├── quiz/
+│   │   │   │   ├── _components/QuizCardItem.jsx  # Interactive question & answer card
+│   │   │   │   └── page.jsx                      # Self-grading assessment & reviews
+│   │   │   ├── layout.jsx                        # Course viewport container
+│   │   │   └── page.jsx                          # Course landing hub
+│   │   └── layout.jsx                            # Shared course root layout
+│   ├── create/
+│   │   ├── _components/
+│   │   │   ├── SelectOption.jsx                  # Accessible study type selector
+│   │   │   └── TopicInput.jsx                    # Topic input & difficulty dropdown
+│   │   └── page.jsx                              # Multi-step Course Creation Studio
+│   ├── dashboard/
+│   │   ├── _components/
+│   │   │   ├── CourseCard.jsx                    # Interactive course card
+│   │   │   ├── CourseList.jsx                    # Search, multi-filter & pagination
+│   │   │   ├── DashboardHeader.jsx               # Synchronized responsive header
+│   │   │   ├── Sidebar.jsx                       # Responsive navigation drawer
+│   │   │   └── WelcomeBanner.jsx                 # Personalized learner hero banner
+│   │   ├── upgrade/page.jsx                      # Stripe credit upgrade page
+│   │   ├── layout.jsx                            # Dashboard shell & sidebar layout
+│   │   └── page.jsx                              # Dashboard home
+│   ├── profile/
+│   │   ├── layout.jsx                            # Profile shell
+│   │   └── page.jsx                              # User account details & statistics
+│   ├── share/[courseId]/page.jsx                 # Zero-auth public study portal
+│   ├── globals.css                               # Tailwind tokens, smooth scroll & custom scrollbars
+│   ├── layout.js                                 # Root layout with ClerkProvider
+│   └── page.js                                   # Public marketing landing page
+├── components/ui/                                # Reusable UI component primitives
+│   ├── button.jsx
+│   ├── carousel.jsx
+│   ├── Navbar.jsx
+│   ├── progress.jsx
+│   ├── select.jsx
+│   ├── sonner.jsx
+│   └── textarea.jsx
+├── configs/
+│   ├── AiModel.js                                # Gemini SDK configuration & prompt adapters
+│   ├── db.js                                     # Dual-database client (Neon / SQLite)
+│   └── schema.js                                 # Drizzle ORM relational schema & indexes
+├── inngest/
+│   ├── client.js                                 # Inngest client initializer
+│   └── functions.js                              # Background workers (Notes, Flashcards, Quizzes)
+├── lib/
+│   ├── auth.js                                   # Server authentication & IDOR helpers
+│   ├── rateLimit.js                              # Sliding-window rate limiter
+│   └── utils.js                                  # Class variance & tailwind merge utilities
+├── middleware.js                                 # Edge security, rate limiting & Clerk guard
+├── drizzle.config.js                             # Drizzle kit configuration
+└── tailwind.config.mjs                           # Tailwind theme tokens & color variables
+```
+
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 18 or higher
-- PostgreSQL database (Neon recommended, or local SQLite fallback)
-- Google Gemini API key
-- Stripe account (Secret key, Publishable key, Webhook secret)
-- Clerk account for authentication
+- **Node.js**: `v18.17.0` or higher
+- **PostgreSQL Database**: [Neon Serverless](https://neon.tech/) (or local SQLite fallback)
+- **Google Gemini API Key**: [Google AI Studio](https://aistudio.google.com/)
+- **Clerk Account**: [Clerk Dashboard](https://dashboard.clerk.com/)
+- **Stripe Account**: [Stripe Dashboard](https://dashboard.stripe.com/)
 
-### Setup Steps
+---
 
-1. **Clone the repository**
+### Step-by-Step Installation
+
+#### 1. Clone Repository
+```bash
+git clone https://github.com/your-username/intelliprep.git
+cd intelliprep
+```
+
+#### 2. Install Dependencies
+```bash
+npm install
+```
+
+#### 3. Environment Configuration
+Create a `.env` file in the root directory:
+
+```env
+# -----------------------------------------------------------------------------
+# Database Configuration (Neon PostgreSQL)
+# -----------------------------------------------------------------------------
+NEXT_PUBLIC_DATABASE_CONNECTION_STRING=postgresql://username:password@ep-example.us-east-2.aws.neon.tech/neondb?sslmode=require
+
+# Optional Local SQLite Fallback:
+# USE_LOCAL_SQLITE=1
+# LOCAL_SQLITE_PATH=./dev.sqlite
+
+# -----------------------------------------------------------------------------
+# Clerk Authentication
+# -----------------------------------------------------------------------------
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard
+
+# -----------------------------------------------------------------------------
+# Google Gemini Artificial Intelligence
+# -----------------------------------------------------------------------------
+GEMINI_API_KEY=AIzaSy...
+GEMINI_MODEL_ID=gemini-3.5-flash-lite
+
+# -----------------------------------------------------------------------------
+# Stripe Payments
+# -----------------------------------------------------------------------------
+STRIPE_SECRET_KEY=sk_test_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# -----------------------------------------------------------------------------
+# Inngest Background Workflows
+# -----------------------------------------------------------------------------
+INNGEST_EVENT_KEY=local
+INNGEST_SIGNING_KEY=local
+INNGEST_DEV=1
+```
+
+#### 4. Run Database Schema Migrations
+```bash
+npm run db:push
+npm run db:migrate:indexes
+```
+
+#### 5. Start Development Server
+In your first terminal, start the Next.js development server:
+```bash
+npm run dev
+```
+
+In a second terminal, start the local Inngest Dev Server to execute background pipelines:
+```bash
+npx inngest-cli@latest dev -u http://localhost:3000/api/inngest
+```
+
+Open [http://localhost:3000](http://localhost:3000) to view IntelliPrep.
+
+---
+
+## 📡 REST API Specifications
+
+| Method | Endpoint | Description | Auth Required | Rate Limit |
+|---|---|---|:---:|:---:|
+| `POST` | `/api/generate-course-outline` | Deducts credit & initiates course syllabus generation | Yes | 10 req / min |
+| `GET` | `/api/courses` | Retrieves detailed course layout by `courseId` | Yes / Public | 60 req / min |
+| `POST` | `/api/courses` | Retrieves all non-deleted courses for authenticated user | Yes | 60 req / min |
+| `GET` | `/api/courses/status` | Real-time progress polling (completed chapters, status) | Yes | 120 req / min |
+| `POST` | `/api/courses/cancel` | Terminates an in-flight course generation job | Yes | 30 req / min |
+| `DELETE`| `/api/courses/delete` | Soft deletes or permanently purges course records | Yes | 30 req / min |
+| `POST` | `/api/courses/notes/update` | Updates & sanitizes chapter notes via inline editor | Yes | 30 req / min |
+| `GET` | `/api/courses/public` | Fetches public course data for shared review links | No | 60 req / min |
+| `POST` | `/api/ai/tutor` | Answers grounded contextual questions using Gemini | Yes | 20 req / min |
+| `POST` | `/api/study-type` | Fetches notes, flashcard decks, or quizzes for a course | Yes | 60 req / min |
+| `POST` | `/api/study-type-content` | Triggers background flashcard or quiz creation | Yes | 15 req / min |
+| `POST` | `/api/quiz/attempt` | Records quiz attempt score, questions, and answers | Yes | 30 req / min |
+| `GET` | `/api/quiz/attempt` | Retrieves user's historical quiz attempts & personal best | Yes | 60 req / min |
+| `GET` | `/api/user/credits` | Returns available credit balance | Yes | 60 req / min |
+| `POST` | `/api/payment/create-order` | Generates a Stripe Checkout session URL | Yes | 10 req / min |
+| `POST` | `/api/payment/verify` | Validates completed Stripe session & awards credits | Yes | 10 req / min |
+| `POST` | `/api/payment/webhook` | Handles asynchronous Stripe fulfillment events | Signature | Unlimited |
+| `GET/POST`| `/api/inngest` | Serves Inngest background event subscriptions | Signature | Unlimited |
+
+---
+
+## 🚢 Production Deployment Guide
+
+### Deploying on Vercel
+1. Push your repository to GitHub.
+2. Import the repository into [Vercel](https://vercel.com).
+3. In Project Settings, configure all environment variables specified in `.env.example`.
+4. Ensure the Build Command is set to:
    ```bash
-   git clone <repository-url>
-   cd intelliprep
+   npm run build
    ```
+5. Deploy.
 
-2. **Install dependencies**
-   ```bash
-   npm install
+### Configuring Stripe Webhooks in Production
+1. In the [Stripe Dashboard](https://dashboard.stripe.com/webhooks), create a new endpoint pointing to:
+   ```text
+   https://your-domain.com/api/payment/webhook
    ```
+2. Select the event: `checkout.session.completed`.
+3. Copy the Signing Secret (`whsec_...`) into your production environment variables.
 
-3. **Environment Configuration**
-   
-   Configure `.env` using `.env.example`:
-   ```bash
-   cp .env.example .env
+### Configuring Inngest in Production
+1. Create an application on [Inngest Cloud](https://app.inngest.com).
+2. Set your webhook URL to:
+   ```text
+   https://your-domain.com/api/inngest
    ```
-   
-   Required environment variables:
-   ```env
-   # Database (PostgreSQL - Neon)
-   NEXT_PUBLIC_DATABASE_CONNECTION_STRING=your_postgres_url
-   # Or use local SQLite:
-   # USE_LOCAL_SQLITE=1
-   # LOCAL_SQLITE_PATH=./dev.sqlite
-   
-   # Authentication (Clerk)
-   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-   CLERK_SECRET_KEY=your_clerk_secret_key
-   NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
-   NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
-   
-   # Google Gemini AI Provider
-   GEMINI_API_KEY=your_gemini_api_key
-   GEMINI_MODEL_ID=gemini-3.5-flash-lite
+3. Copy the production `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` to your deployment host.
 
-   # Stripe Payments
-   STRIPE_SECRET_KEY=sk_test_...
-   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
-   STRIPE_WEBHOOK_SECRET=whsec_...
+---
 
-   # Background Jobs
-   INNGEST_DEV=1
-   INNGEST_EVENT_KEY=local
-   INNGEST_SIGNING_KEY=local
-   ```
+## 📄 License
 
-4. **Database Setup & Migrations**
-   ```bash
-   npm run db:migrate:indexes
-   ```
-
-5. **Start Development Server**
-   ```bash
-   npm run dev
-   ```
-
-   Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-## Usage
-
-### Creating a Course
-
-1. **Sign Up/Login**: Create an account or sign in using Clerk authentication
-2. **Navigate to Create**: Click "Create New" from the dashboard
-3. **Select Study Type**: Choose from options like Exam, Job Interview, Practice, etc.
-4. **Enter Topic Details**: 
-   - Input your topic (e.g., "JavaScript Fundamentals")
-   - Select difficulty level (Easy, Medium, Hard)
-5. **Generate Course**: Click "Generate" to create your study materials
-
-### Accessing Study Materials
-
-Once your course is generated:
-
-- **Notes**: Automatically available - click "View" to read structured chapter content
-- **Flashcards**: Click "Generate" then "View" to access interactive flashcards
-- **Quiz**: Click "Generate" then "View" to take multiple-choice quizzes
-
-### Upgrading Credits
-
-- Navigate to `/dashboard/upgrade`
-- Select a plan (Basic, Pro, or Premium)
-- Pay securely through Stripe Checkout
-- Credits are immediately added to your balance
+This project is licensed under the **MIT License**. Feel free to use, modify, and distribute this codebase for educational and commercial purposes.
