@@ -1,5 +1,5 @@
 import db from "../../../configs/db";
-import { desc, eq, and } from "drizzle-orm"; 
+import { desc, eq, and, isNull } from "drizzle-orm"; 
 import { NextResponse } from "next/server";
 import { STUDY_MATERIAL_TABLE } from "../../../configs/schema";
 import { getAuthenticatedUser, unauthorizedResponse, forbiddenResponse } from "../../../lib/auth";
@@ -11,11 +11,25 @@ export async function POST(req) {
             return unauthorizedResponse();
         }
 
+        let includeDeleted = false;
+        try {
+            const body = await req.json();
+            if (body?.includeDeleted) includeDeleted = true;
+        } catch (_) {
+            // Body is optional
+        }
+
         // Server-enforced identity: only fetch courses for the authenticated user
+        // Filter out soft-deleted courses by default
+        const conditions = [eq(STUDY_MATERIAL_TABLE.createdBy, user.email)];
+        if (!includeDeleted) {
+            conditions.push(isNull(STUDY_MATERIAL_TABLE.deletedAt));
+        }
+
         const result = await db
             .select()
             .from(STUDY_MATERIAL_TABLE)
-            .where(eq(STUDY_MATERIAL_TABLE.createdBy, user.email))
+            .where(and(...conditions))
             .orderBy(desc(STUDY_MATERIAL_TABLE.id));
 
         const parsedResult = result.map(course => {
@@ -66,6 +80,11 @@ export async function GET(req) {
         if (course[0].createdBy !== user.email) {
             console.warn(`⛔ [GET /api/courses] IDOR attempt: ${user.email} tried to access course ${courseId} owned by ${course[0].createdBy}`);
             return forbiddenResponse();
+        }
+
+        // Check if soft-deleted
+        if (course[0].deletedAt) {
+            return NextResponse.json({ error: "Course has been deleted", deleted: true }, { status: 404 });
         }
 
         if (typeof course[0].courseLayout === 'string') {

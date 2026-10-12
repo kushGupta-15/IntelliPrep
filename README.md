@@ -19,6 +19,12 @@ The application features user authentication via Clerk, real-time content genera
 - **Server-Side Session Authentication**: All API endpoints authenticate requests server-side via Clerk (`auth()` / `currentUser()`). User identity is never trusted from client request bodies.
 - **IDOR Protection**: Strict ownership validation on all course resources—users can only view, generate content for, cancel, or delete their own study materials.
 - **Atomic Server-Side Credit Billing**: Credit checks and deductions occur atomically on the server before invoking AI generation, eliminating client-side credit bypasses.
+- **Atomic Database Transactions**: Multi-table deletions, cancellations, and credit refunds are wrapped in `db.transaction()` to ensure all-or-nothing consistency without orphaned rows.
+- **Soft Delete Pattern & Instant Undo**: Course deletions default to soft deletion (`deletedAt: timestamp`), preventing accidental data loss while offering one-click undo restoration and optional permanent purge.
+- **Dual-Layer Rate Limiting & DoS Protection**: 
+  - *Layer 1 (Edge Middleware)*: Global flood protection limiting general API traffic per IP address.
+  - *Layer 2 (Route-Level)*: Sliding-window token limits on compute-intensive operations (AI course generation, study content creation, and Stripe checkout sessions).
+- **High-Performance Database Indexing**: Dedicated B-Tree indexes on query-intensive columns (`createdBy`, `courseId`, `email`, `deleted_at`) and composite indexes (`(courseId, type)`) for fast, optimized queries.
 - **Stored XSS Prevention**: AI-generated HTML notes are sanitized with `DOMPurify` (`isomorphic-dompurify`) before rendering to safeguard against script injection.
 - **Input Validation & Prompt Injection Guardrails**: Request payloads are strictly validated using Zod schemas with length limits and field constraints.
 
@@ -80,7 +86,12 @@ The application features user authentication via Clerk, real-time content genera
    INNGEST_SIGNING_KEY=local
    ```
 
-4. **Start Development Server**
+4. **Database Setup & Migrations**
+   ```bash
+   npm run db:migrate:indexes
+   ```
+
+5. **Start Development Server**
    ```bash
    npm run dev
    ```

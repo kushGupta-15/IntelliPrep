@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getAuthenticatedUser, unauthorizedResponse } from "../../../../lib/auth";
+import { checkRateLimit, rateLimitResponse } from "../../../../lib/rateLimit";
 
 const stripeApiKey = process.env.STRIPE_SECRET_KEY;
 const stripe = stripeApiKey ? new Stripe(stripeApiKey) : null;
@@ -23,6 +24,12 @@ export async function POST(req) {
         const authUser = await getAuthenticatedUser();
         if (!authUser || !authUser.email) {
             return unauthorizedResponse();
+        }
+
+        // Rate limit: max 8 checkout requests per 2 minutes per user
+        const rateLimitResult = checkRateLimit(`payment-order:${authUser.email}`, { limit: 8, windowMs: 120000 });
+        if (!rateLimitResult.success) {
+            return rateLimitResponse(rateLimitResult);
         }
 
         const { planId } = await req.json();

@@ -75,12 +75,34 @@ function CourseCard({ course, onCourseDeleted, onCourseUpdated }) {
       });
 
       if (response.data.success) {
-        toast.success(`Course "${courseTitle}" deleted successfully`);
+        toast((t) => (
+          <span className="flex items-center justify-between gap-3 text-sm">
+            <span>Course moved to trash</span>
+            <button
+              onClick={async () => {
+                toast.dismiss(t.id);
+                try {
+                  await axios.delete('/api/courses/delete', {
+                    data: { courseId: course.courseId, action: 'restore' }
+                  });
+                  toast.success(`Course "${courseTitle}" restored!`);
+                  if (onCourseUpdated) onCourseUpdated();
+                } catch (_) {
+                  toast.error("Failed to restore course");
+                }
+              }}
+              className="text-xs bg-indigo-600 text-white font-semibold px-2 py-1 rounded hover:bg-indigo-700 transition-colors"
+            >
+              Undo
+            </button>
+          </span>
+        ), { duration: 6000 });
+
         if (onCourseDeleted) onCourseDeleted(course.courseId);
       }
     } catch (error) {
       console.error("Error deleting course:", error);
-      toast.error("Failed to delete course. Please try again.");
+      toast.error(error?.response?.data?.error || "Failed to delete course. Please try again.");
     } finally {
       setIsDeleting(false);
       setShowDeleteConfirm(false);

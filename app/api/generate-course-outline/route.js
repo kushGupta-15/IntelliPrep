@@ -5,6 +5,7 @@ import { STUDY_MATERIAL_TABLE, CHAPTER_NOTES_TABLE, USER_TABLE } from "../../../
 import { inngest } from "../../../inngest/client";
 import { eq, sql } from "drizzle-orm";
 import { getAuthenticatedUser, unauthorizedResponse } from "../../../lib/auth";
+import { checkRateLimit, rateLimitResponse } from "../../../lib/rateLimit";
 import { z } from "zod";
 
 // Input schema validation using Zod
@@ -100,6 +101,13 @@ export async function POST(req) {
             return unauthorizedResponse();
         }
         userEmail = authUser.email;
+
+        // Rate limit: max 6 course outline requests per 2 minutes per user
+        const rateLimitResult = checkRateLimit(`course-outline:${userEmail}`, { limit: 6, windowMs: 120000 });
+        if (!rateLimitResult.success) {
+            console.warn(`⏳ [generate-course-outline] Rate limit reached for user: ${userEmail}`);
+            return rateLimitResponse(rateLimitResult);
+        }
 
         // 2. Validate request payload with Zod
         const rawBody = await req.json();

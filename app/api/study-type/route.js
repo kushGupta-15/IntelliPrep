@@ -17,14 +17,18 @@ export async function POST(req) {
             return NextResponse.json({ error: "courseId is required" }, { status: 400 });
         }
 
-        // Verify ownership: ensure course belongs to the authenticated user
+        // Verify ownership and ensure course is active
         const course = await db
-            .select({ id: STUDY_MATERIAL_TABLE.id, createdBy: STUDY_MATERIAL_TABLE.createdBy })
+            .select({ 
+                id: STUDY_MATERIAL_TABLE.id, 
+                createdBy: STUDY_MATERIAL_TABLE.createdBy,
+                deletedAt: STUDY_MATERIAL_TABLE.deletedAt 
+            })
             .from(STUDY_MATERIAL_TABLE)
             .where(eq(STUDY_MATERIAL_TABLE.courseId, courseId));
 
-        if (!course[0]) {
-            return NextResponse.json({ error: "Course not found" }, { status: 404 });
+        if (!course[0] || course[0].deletedAt) {
+            return NextResponse.json({ error: "Course not found or deleted" }, { status: 404 });
         }
 
         if (course[0].createdBy !== user.email) {

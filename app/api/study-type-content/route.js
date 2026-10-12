@@ -5,12 +5,19 @@ import { NextResponse } from "next/server";
 import { generateStudyTypeContent, GenerateQuizAiModel } from "../../../configs/AiModel";
 import { eq } from "drizzle-orm";
 import { getAuthenticatedUser, unauthorizedResponse, forbiddenResponse } from "../../../lib/auth";
+import { checkRateLimit, rateLimitResponse } from "../../../lib/rateLimit";
 
 export async function POST(req) {
     try {
         const user = await getAuthenticatedUser();
         if (!user || !user.email) {
             return unauthorizedResponse();
+        }
+
+        // Rate limit: max 12 requests per 1 minute per user
+        const rateLimitResult = checkRateLimit(`study-type-content:${user.email}`, { limit: 12, windowMs: 60000 });
+        if (!rateLimitResult.success) {
+            return rateLimitResponse(rateLimitResult);
         }
 
         const { chapters, courseId, type } = await req.json();
@@ -28,14 +35,18 @@ export async function POST(req) {
             return NextResponse.json({ error: "Invalid study type" }, { status: 400 });
         }
 
-        // Verify course ownership
+        // Verify course ownership and ensure active
         const course = await db
-            .select({ id: STUDY_MATERIAL_TABLE.id, createdBy: STUDY_MATERIAL_TABLE.createdBy })
+            .select({ 
+                id: STUDY_MATERIAL_TABLE.id, 
+                createdBy: STUDY_MATERIAL_TABLE.createdBy,
+                deletedAt: STUDY_MATERIAL_TABLE.deletedAt 
+            })
             .from(STUDY_MATERIAL_TABLE)
             .where(eq(STUDY_MATERIAL_TABLE.courseId, courseId));
 
-        if (!course[0]) {
-            return NextResponse.json({ error: "Course not found" }, { status: 404 });
+        if (!course[0] || course[0].deletedAt) {
+            return NextResponse.json({ error: "Course not found or deleted" }, { status: 404 });
         }
 
         if (course[0].createdBy !== user.email) {

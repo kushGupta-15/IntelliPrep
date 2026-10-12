@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import db from "../../../../configs/db";
-import { STUDY_MATERIAL_TABLE, CHAPTER_NOTES_TABLE } from "../../../../configs/schema";
-import { eq } from "drizzle-orm";
+import { STUDY_MATERIAL_TABLE, CHAPTER_NOTES_TABLE, USER_TABLE } from "../../../../configs/schema";
+import { eq, sql } from "drizzle-orm";
 import { getAuthenticatedUser, unauthorizedResponse, forbiddenResponse } from "../../../../lib/auth";
 
 export async function POST(req) {
@@ -41,27 +41,39 @@ export async function POST(req) {
             );
         }
 
-        // Mark as Cancelled — the Inngest / worker checks this before each chapter
-        await db
-            .update(STUDY_MATERIAL_TABLE)
-            .set({ status: "Cancelled" })
-            .where(eq(STUDY_MATERIAL_TABLE.courseId, courseId));
+        // Atomically update status, purge partial notes, and refund credit in a transaction
+        let deletedNotesCount = 0;
+        await db.transaction(async (tx) => {
+            await tx
+                .update(STUDY_MATERIAL_TABLE)
+                .set({ status: "Cancelled" })
+                .where(eq(STUDY_MATERIAL_TABLE.courseId, courseId));
 
-        // Delete any partial notes already written
-        const deletedNotes = await db
-            .delete(CHAPTER_NOTES_TABLE)
-            .where(eq(CHAPTER_NOTES_TABLE.courseId, courseId))
-            .returning({ id: CHAPTER_NOTES_TABLE.id });
+            const notes = await tx
+                .delete(CHAPTER_NOTES_TABLE)
+                .where(eq(CHAPTER_NOTES_TABLE.courseId, courseId))
+                .returning({ id: CHAPTER_NOTES_TABLE.id });
+            deletedNotesCount = notes.length;
 
-        console.log(`🛑 [cancel] Course ${courseId} cancelled. Removed ${deletedNotes.length} partial notes.`);
+            // Refund 1 credit for cancelled incomplete course
+            await tx
+                .update(USER_TABLE)
+                .set({ credits: sql`COALESCE(${USER_TABLE.credits}, 0) + 1` })
+                .where(eq(USER_TABLE.email, user.email));
+        });
+
+        console.log(`🛑 [cancel] Course ${courseId} cancelled and 1 credit refunded to ${user.email}. Removed ${deletedNotesCount} partial notes.`);
 
         return NextResponse.json({
             success: true,
-            message: "Course generation cancelled",
-            deletedNotes: deletedNotes.length,
+            message: "Course generation cancelled and credit refunded",
+            courseId,
+            refunded: true,
+            deletedNotes: deletedNotesCount
         });
+
     } catch (error) {
-        console.error("❌ [cancel] Error cancelling course:", error);
+        console.error("Error cancelling course:", error);
         return NextResponse.json(
             { error: "Failed to cancel course", details: error.message },
             { status: 500 }

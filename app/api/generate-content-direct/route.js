@@ -4,12 +4,19 @@ import { STUDY_TYPE_CONTENT_TABLE, STUDY_MATERIAL_TABLE } from "../../../configs
 import db from "../../../configs/db";
 import { eq } from "drizzle-orm";
 import { getAuthenticatedUser, unauthorizedResponse, forbiddenResponse } from "../../../lib/auth";
+import { checkRateLimit, rateLimitResponse } from "../../../lib/rateLimit";
 
 export async function POST(req) {
     try {
         const user = await getAuthenticatedUser();
         if (!user || !user.email) {
             return unauthorizedResponse();
+        }
+
+        // Rate limit: max 12 direct generation requests per minute
+        const rateLimitResult = checkRateLimit(`direct-gen:${user.email}`, { limit: 12, windowMs: 60000 });
+        if (!rateLimitResult.success) {
+            return rateLimitResponse(rateLimitResult);
         }
 
         const { recordId, studyType, prompt } = await req.json();
@@ -32,13 +39,20 @@ export async function POST(req) {
             return NextResponse.json({ error: "Record not found" }, { status: 404 });
         }
 
-        // Verify that user owns the parent course
+        // Verify that user owns the parent course and course is not deleted
         const course = await db
-            .select({ createdBy: STUDY_MATERIAL_TABLE.createdBy })
+            .select({ 
+                createdBy: STUDY_MATERIAL_TABLE.createdBy,
+                deletedAt: STUDY_MATERIAL_TABLE.deletedAt 
+            })
             .from(STUDY_MATERIAL_TABLE)
             .where(eq(STUDY_MATERIAL_TABLE.courseId, record[0].courseId));
 
-        if (!course[0] || course[0].createdBy !== user.email) {
+        if (!course[0] || course[0].deletedAt) {
+            return NextResponse.json({ error: "Course not found or deleted" }, { status: 404 });
+        }
+
+        if (course[0].createdBy !== user.email) {
             console.warn(`⛔ [Direct] IDOR attempt: ${user.email} tried to generate content for course owned by ${course[0]?.createdBy}`);
             return forbiddenResponse();
         }
