@@ -4,8 +4,9 @@ import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '../../../../components/ui/button';
-import { ChevronLeft, ChevronRight, ArrowLeft, BookOpen, CheckCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowLeft, BookOpen, CheckCircle, Edit3, Save, X, Eye } from 'lucide-react';
 import DOMPurify from 'isomorphic-dompurify';
+import toast from 'react-hot-toast';
 
 function ViewNotes() {
   const { courseId } = useParams();
@@ -13,6 +14,12 @@ function ViewNotes() {
   const [stepCount, setStepCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+
+  // Inline Note Editing state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState("");
+  const [previewTab, setPreviewTab] = useState(false); // false = edit, true = preview
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const fetchNotes = async () => {
@@ -22,7 +29,7 @@ function ViewNotes() {
           courseId,
           studyType: 'notes',
         });
-        setNotes(result.data);
+        setNotes(result.data || []);
       } catch (error) {
         console.error("Error fetching notes:", error);
       } finally {
@@ -31,6 +38,50 @@ function ViewNotes() {
     };
     fetchNotes();
   }, [courseId]);
+
+  // When step changes, exit edit mode
+  useEffect(() => {
+    setIsEditing(false);
+    setPreviewTab(false);
+  }, [stepCount]);
+
+  const handleStartEditing = () => {
+    setEditedContent(notes[stepCount]?.notes || "");
+    setIsEditing(true);
+    setPreviewTab(false);
+  };
+
+  const handleCancelEditing = () => {
+    setIsEditing(false);
+    setPreviewTab(false);
+  };
+
+  const handleSaveNotes = async () => {
+    setIsSaving(true);
+    try {
+      const chapterId = notes[stepCount]?.chapterId ?? stepCount;
+      const res = await axios.post("/api/courses/notes/update", {
+        courseId,
+        chapterId,
+        notes: editedContent,
+      });
+
+      if (res.data?.success) {
+        toast.success("Notes saved successfully!");
+        setNotes(prev => {
+          const updated = [...prev];
+          updated[stepCount] = { ...updated[stepCount], notes: editedContent };
+          return updated;
+        });
+        setIsEditing(false);
+      }
+    } catch (err) {
+      console.error("Failed to update notes:", err);
+      toast.error(err?.response?.data?.error || "Failed to save notes. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -96,31 +147,89 @@ function ViewNotes() {
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
           {/* Chapter header strip */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-4">
+          <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="bg-white/20 text-white text-xs font-bold px-2.5 py-1 rounded-full">
                 Chapter {stepCount + 1}
               </span>
             </div>
+            {!isEditing ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleStartEditing}
+                className="text-white hover:bg-white/20 text-xs flex items-center gap-1.5"
+              >
+                <Edit3 className="w-3.5 h-3.5" /> Edit Note
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPreviewTab(p => !p)}
+                  className="text-white hover:bg-white/20 text-xs flex items-center gap-1.5"
+                >
+                  <Eye className="w-3.5 h-3.5" /> {previewTab ? "Edit Code" : "Live Preview"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCancelEditing}
+                  disabled={isSaving}
+                  className="text-white hover:bg-white/20 text-xs flex items-center gap-1"
+                >
+                  <X className="w-3.5 h-3.5" /> Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSaveNotes}
+                  disabled={isSaving}
+                  className="bg-white text-blue-700 hover:bg-white/90 text-xs font-bold flex items-center gap-1.5 shadow-sm"
+                >
+                  <Save className="w-3.5 h-3.5" /> {isSaving ? "Saving..." : "Save"}
+                </Button>
+              </div>
+            )}
           </div>
 
-          {/* Notes HTML content */}
+          {/* Notes content / editor */}
           <div className="px-6 py-8 md:px-10 md:py-10">
-            <div
-              className="
-                prose prose-base max-w-none
-                prose-headings:font-bold prose-headings:text-gray-900
-                prose-h2:text-2xl prose-h2:mt-0 prose-h2:mb-4 prose-h2:pb-3 prose-h2:border-b prose-h2:border-gray-100
-                prose-h3:text-lg prose-h3:text-blue-700 prose-h3:mt-6 prose-h3:mb-2
-                prose-p:text-gray-600 prose-p:leading-relaxed
-                prose-ul:space-y-1.5
-                prose-li:text-gray-600 prose-li:leading-relaxed
-                prose-strong:text-gray-800 prose-strong:font-semibold
-                prose-code:bg-gray-100 prose-code:text-blue-700 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm
-                prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-pre:rounded-xl prose-pre:overflow-x-auto
-              "
-              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(notes[stepCount]?.notes || '') }}
-            />
+            {isEditing && !previewTab ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <span>Edit your notes (HTML or plain text supported):</span>
+                  <span>Sanitized with DOMPurify on save</span>
+                </div>
+                <textarea
+                  value={editedContent}
+                  onChange={(e) => setEditedContent(e.target.value)}
+                  rows={16}
+                  className="w-full p-4 font-mono text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-gray-50/50"
+                  placeholder="Enter or modify your study notes here..."
+                />
+              </div>
+            ) : (
+              <div
+                className="
+                  prose prose-base max-w-none
+                  prose-headings:font-bold prose-headings:text-gray-900
+                  prose-h2:text-2xl prose-h2:mt-0 prose-h2:mb-4 prose-h2:pb-3 prose-h2:border-b prose-h2:border-gray-100
+                  prose-h3:text-lg prose-h3:text-blue-700 prose-h3:mt-6 prose-h3:mb-2
+                  prose-p:text-gray-600 prose-p:leading-relaxed
+                  prose-ul:space-y-1.5
+                  prose-li:text-gray-600 prose-li:leading-relaxed
+                  prose-strong:text-gray-800 prose-strong:font-semibold
+                  prose-code:bg-gray-100 prose-code:text-blue-700 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm
+                  prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-pre:rounded-xl prose-pre:overflow-x-auto
+                "
+                dangerouslySetInnerHTML={{
+                  __html: DOMPurify.sanitize(
+                    isEditing ? editedContent : (notes[stepCount]?.notes || '')
+                  ),
+                }}
+              />
+            )}
           </div>
         </div>
 
@@ -128,7 +237,7 @@ function ViewNotes() {
         <div className="flex items-center justify-between mt-6 gap-4">
           <Button
             variant="outline"
-            onClick={() => setStepCount(s => s - 1)}
+            onClick={() => setStepCount(s => Math.max(0, s - 1))}
             disabled={stepCount === 0}
             className="flex items-center gap-2"
           >

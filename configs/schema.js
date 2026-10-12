@@ -48,3 +48,16 @@ export const STUDY_TYPE_CONTENT_TABLE = pgTable('studyTypeContent', {
 }, (table) => [
     index('study_type_content_course_type_idx').on(table.courseId, table.type),
 ]);
+
+export const QUIZ_ATTEMPTS_TABLE = pgTable('quizAttempts', {
+    id: serial('id').primaryKey(),
+    courseId: varchar('courseId').notNull(),
+    userEmail: varchar('userEmail').notNull(),
+    score: integer('score').notNull(),
+    totalQuestions: integer('totalQuestions').notNull(),
+    answersJSON: json('answersJSON'),
+    createdAt: timestamp('created_at').defaultNow(),
+}, (table) => [
+    index('quiz_attempts_course_idx').on(table.courseId),
+    index('quiz_attempts_user_idx').on(table.userEmail),
+]);

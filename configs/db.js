@@ -50,12 +50,23 @@ function createSqliteDb() {
       status TEXT DEFAULT 'Generating',
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE IF NOT EXISTS quizAttempts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      courseId TEXT NOT NULL,
+      userEmail TEXT NOT NULL,
+      score INTEGER NOT NULL,
+      totalQuestions INTEGER NOT NULL,
+      answersJSON TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
     CREATE INDEX IF NOT EXISTS study_material_user_idx ON studyMaterial (createdBy);
     CREATE INDEX IF NOT EXISTS study_material_course_idx ON studyMaterial (courseId);
     CREATE INDEX IF NOT EXISTS study_material_deleted_idx ON studyMaterial (deleted_at);
     CREATE INDEX IF NOT EXISTS chapter_notes_course_idx ON ChapterNotes (courseId);
     CREATE INDEX IF NOT EXISTS study_type_content_course_type_idx ON studyTypeContent (courseId, type);
     CREATE INDEX IF NOT EXISTS users_email_idx ON users (email);
+    CREATE INDEX IF NOT EXISTS quiz_attempts_course_idx ON quizAttempts (courseId);
+    CREATE INDEX IF NOT EXISTS quiz_attempts_user_idx ON quizAttempts (userEmail);
   `).catch((err) => {
     // Non-fatal if tables already exist or in-flight
     console.debug('SQLite table init info:', err?.message);

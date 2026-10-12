@@ -7,9 +7,11 @@ An AI-powered study material generator that transforms any topic into comprehens
 IntelliPrep is a Next.js application that uses artificial intelligence to create personalized study materials. Users can input any topic and difficulty level, and the system generates:
 
 - **Structured Course Outlines**: Organized chapters with detailed summaries
-- **Interactive Notes**: HTML-formatted content with proper structure
-- **Flashcards**: Question-answer pairs with flip animations
-- **Quizzes**: Multiple-choice questions with instant feedback
+- **Interactive Notes & Inline Editing**: Structured notes with in-app edit mode and live preview, sanitized with DOMPurify
+- **Spaced Repetition System (SRS) Flashcards**: Leitner Box memory ratings (Again, Hard, Good, Easy), deck mastery analytics, and filterable review decks
+- **Persistent Quiz History & Analytics**: Automatic attempt tracking, best score progression, and question-by-question mistake reviews
+- **Dashboard Search, Filtering & Pagination**: Real-time topic search, multi-criteria filtering (study type, status, difficulty), and pagination
+- **Real-Time Generation Progress**: Live chapter-by-chapter generation tracking and progress percentage
 - **Credit Upgrade via Stripe**: Secure payment processing with Stripe for course credits
 
 The application features user authentication via Clerk, real-time content generation status updates, and a responsive design that works across all devices.

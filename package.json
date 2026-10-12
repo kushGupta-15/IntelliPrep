@@ -10,7 +10,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:migrate:indexes": "node --env-file=.env scripts/migrate-phase2.mjs"
+    "db:migrate:indexes": "node --env-file=.env scripts/migrate-phase2.mjs",
+    "db:migrate:phase3": "node --env-file=.env scripts/migrate-phase3.mjs"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.23.0",
