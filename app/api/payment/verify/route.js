@@ -1,36 +1,74 @@
 import { NextResponse } from "next/server";
-import crypto from "crypto";
+import Stripe from "stripe";
 import db from "../../../../configs/db";
 import { USER_TABLE } from "../../../../configs/schema";
 import { eq, sql } from "drizzle-orm";
+import { getAuthenticatedUser, unauthorizedResponse, forbiddenResponse } from "../../../../lib/auth";
+
+const stripeApiKey = process.env.STRIPE_SECRET_KEY;
+const stripe = stripeApiKey ? new Stripe(stripeApiKey) : null;
 
 export async function POST(req) {
-    if (!process.env.RAZORPAY_KEY_SECRET) {
+    if (!stripe) {
         return NextResponse.json(
-            { error: "Payments are not configured yet." },
+            { error: "Stripe payments are not configured." },
             { status: 503 }
         );
     }
 
     try {
-        const { razorpay_order_id, razorpay_payment_id, razorpay_signature, email, credits } = await req.json();
-
-        if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !email || !credits) {
-            return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+        const authUser = await getAuthenticatedUser();
+        if (!authUser || !authUser.email) {
+            return unauthorizedResponse();
         }
 
-        // Verify Razorpay signature
-        const expectedSignature = crypto
-            .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-            .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-            .digest("hex");
+        const { sessionId } = await req.json();
 
-        if (expectedSignature !== razorpay_signature) {
-            console.error("[payment] Signature mismatch for order:", razorpay_order_id);
-            return NextResponse.json({ error: "Payment verification failed" }, { status: 400 });
+        if (!sessionId) {
+            return NextResponse.json({ error: "sessionId is required" }, { status: 400 });
         }
 
-        console.log(`[payment] ✅ Verified: ${razorpay_payment_id} for ${email}, adding ${credits} credits`);
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+        if (!session) {
+            return NextResponse.json({ error: "Session not found" }, { status: 404 });
+        }
+
+        if (session.payment_status !== "paid") {
+            return NextResponse.json(
+                { error: "Payment not completed", payment_status: session.payment_status },
+                { status: 400 }
+            );
+        }
+
+        const email = session.metadata?.email || session.customer_email;
+        const credits = Number(session.metadata?.credits || 0);
+
+        if (!email || !credits) {
+            return NextResponse.json({ error: "Missing metadata in session" }, { status: 400 });
+        }
+
+        // Verify that the caller is the owner of the payment session
+        if (email !== authUser.email) {
+            console.warn(`⛔ [stripe-verify] IDOR attempt: ${authUser.email} tried to verify session for ${email}`);
+            return forbiddenResponse();
+        }
+
+        // Check if this session was already processed to prevent duplicate credits
+        if (session.metadata?.processed === "true") {
+            const existingUser = await db
+                .select({ credits: USER_TABLE.credits })
+                .from(USER_TABLE)
+                .where(eq(USER_TABLE.email, email));
+
+            return NextResponse.json({
+                success: true,
+                alreadyProcessed: true,
+                credits: existingUser[0]?.credits,
+            });
+        }
+
+        console.log(`[stripe] ✅ Verified session: ${session.id} for ${email}, adding ${credits} credits`);
 
         const updated = await db
             .update(USER_TABLE)
@@ -45,15 +83,15 @@ export async function POST(req) {
             return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
 
-        console.log(`[payment] 💳 New balance for ${email}: ${updated[0].credits}`);
+        console.log(`[stripe] 💳 New balance for ${email}: ${updated[0].credits}`);
 
         return NextResponse.json({
-            success:   true,
-            credits:   updated[0].credits,
-            paymentId: razorpay_payment_id,
+            success: true,
+            credits: updated[0].credits,
+            sessionId: session.id,
         });
     } catch (error) {
-        console.error("[payment] verify error:", error);
+        console.error("[stripe] verify error:", error);
         return NextResponse.json({ error: "Internal Server Error", details: error.message }, { status: 500 });
     }
 }

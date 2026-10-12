@@ -1,21 +1,46 @@
-import { STUDY_TYPE_CONTENT_TABLE } from "../../../configs/schema";
+import { STUDY_TYPE_CONTENT_TABLE, STUDY_MATERIAL_TABLE } from "../../../configs/schema";
 import { inngest } from "../../../inngest/client";
 import db from "../../../configs/db";
 import { NextResponse } from "next/server";
 import { generateStudyTypeContent, GenerateQuizAiModel } from "../../../configs/AiModel";
 import { eq } from "drizzle-orm";
+import { getAuthenticatedUser, unauthorizedResponse, forbiddenResponse } from "../../../lib/auth";
 
 export async function POST(req) {
     try {
-        const {chapters, courseId, type} = await req.json();
-        console.log("Received chapters:", chapters);
-        console.log("Chapters type:", typeof chapters);
+        const user = await getAuthenticatedUser();
+        if (!user || !user.email) {
+            return unauthorizedResponse();
+        }
+
+        const { chapters, courseId, type } = await req.json();
 
         if (!courseId) {
             return NextResponse.json({ error: "courseId is required" }, { status: 400 });
         }
         if (!type) {
             return NextResponse.json({ error: "type is required" }, { status: 400 });
+        }
+
+        // Validate study type
+        const normalizedType = type.trim();
+        if (!["Flashcard", "Quiz", "qa"].includes(normalizedType)) {
+            return NextResponse.json({ error: "Invalid study type" }, { status: 400 });
+        }
+
+        // Verify course ownership
+        const course = await db
+            .select({ id: STUDY_MATERIAL_TABLE.id, createdBy: STUDY_MATERIAL_TABLE.createdBy })
+            .from(STUDY_MATERIAL_TABLE)
+            .where(eq(STUDY_MATERIAL_TABLE.courseId, courseId));
+
+        if (!course[0]) {
+            return NextResponse.json({ error: "Course not found" }, { status: 404 });
+        }
+
+        if (course[0].createdBy !== user.email) {
+            console.warn(`⛔ [study-type-content] IDOR attempt: ${user.email} tried to generate content for course ${courseId} owned by ${course[0].createdBy}`);
+            return forbiddenResponse();
         }
 
         let chaptersText = "";
@@ -44,53 +69,48 @@ export async function POST(req) {
             chaptersText = "General study topics";
         }
 
-        const PROMPT = type === "Flashcard" 
+        // Limit chapters text length to prevent prompt overflow
+        chaptersText = chaptersText.slice(0, 4000);
+
+        const PROMPT = normalizedType === "Flashcard" 
             ? `Generate flashcards for the following topics: ${chaptersText}. Create flashcards in JSON format with "front" and "back" properties. Maximum 15 flashcards. Return only a JSON array of flashcard objects.`
             : `Generate a quiz for the following topics: ${chaptersText}. Create multiple choice questions in JSON format with "questionText", "options" array, and "correctAnswer" properties. Maximum 15 questions. Return only a JSON object with a "questions" array.`;
 
-        console.log("Generated PROMPT:", PROMPT);
-
         const result = await db.insert(STUDY_TYPE_CONTENT_TABLE).values({
-            courseId : courseId,
-            type : type,
-        }).returning({id : STUDY_TYPE_CONTENT_TABLE.id});
+            courseId: courseId,
+            type: normalizedType,
+        }).returning({ id: STUDY_TYPE_CONTENT_TABLE.id });
 
-        console.log("Inserted record with ID:", result[0].id);
+        console.log(`[study-type-content] Inserted record ID ${result[0].id} for course ${courseId}`);
 
         let contentGenerated = false;
         
         try {
             const inngestResult = await inngest.send({
-                name : 'studyType.content',
-                data : {
-                    studyType : type,
-                    prompt : PROMPT,
-                    courseId : courseId,
-                    recordId : result[0].id
+                name: 'studyType.content',
+                data: {
+                    studyType: normalizedType,
+                    prompt: PROMPT,
+                    courseId: courseId,
+                    recordId: result[0].id
                 }
             });
-
             console.log("Inngest event sent:", inngestResult);
-            
             await new Promise(resolve => setTimeout(resolve, 2000));
-            
         } catch (inngestError) {
             console.error("Inngest send error:", inngestError);
         }
         
         const checkResult = await db.select().from(STUDY_TYPE_CONTENT_TABLE).where(eq(STUDY_TYPE_CONTENT_TABLE.id, result[0].id));
         if (checkResult[0] && checkResult[0].status === "Ready") {
-            console.log("Inngest processed successfully");
             contentGenerated = true;
-        } else {
-            console.log("Inngest did not process, falling back to direct generation...");
         }
         
         if (!contentGenerated) {
             try {
-                console.log("Starting direct content generation...");
+                console.log("[study-type-content] Inngest pending, executing direct content generation...");
                 
-                const aiResult = type?.toLowerCase().trim() === "flashcard"
+                const aiResult = normalizedType?.toLowerCase() === "flashcard"
                     ? await generateStudyTypeContent.sendMessage(PROMPT)
                     : await GenerateQuizAiModel.sendMessage(PROMPT);
 
@@ -102,8 +122,6 @@ export async function POST(req) {
                     .replace(/```$/i, "")
                     .trim();
 
-                console.log("🔍 Direct AI Response:", aiResponseText);
-                
                 const parsedResult = JSON.parse(aiResponseText);
                 
                 await db.update(STUDY_TYPE_CONTENT_TABLE).set({
@@ -111,15 +129,13 @@ export async function POST(req) {
                     status: "Ready"
                 }).where(eq(STUDY_TYPE_CONTENT_TABLE.id, result[0].id));
 
-                console.log("Direct content generation successful");
-                contentGenerated = true;
-                
+                console.log("[study-type-content] Direct content generation successful");
             } catch (directError) {
-                console.error(" Direct content generation error:", directError);
+                console.error("Direct content generation error:", directError);
             }
         }
 
-        return NextResponse.json({id : result[0].id});
+        return NextResponse.json({ id: result[0].id });
     } catch (error) {
         console.error("Error in study-type-content route:", error);
         return NextResponse.json({ 

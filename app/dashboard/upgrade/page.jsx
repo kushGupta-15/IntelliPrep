@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, Suspense } from "react";
 import { useUser } from "@clerk/nextjs";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { CheckCircle, Zap, Star, Crown, ArrowLeft } from "lucide-react";
 import { Button } from "../../../components/ui/button";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const PLANS = [
     {
@@ -65,17 +65,56 @@ const PLANS = [
     },
 ];
 
-export default function UpgradePage() {
+function UpgradeContent() {
     const { user } = useUser();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [currentCredits, setCurrentCredits] = useState(null);
     const [loadingPlan, setLoadingPlan] = useState(null);
+    const processedSessionRef = useRef(false);
 
     useEffect(() => {
         if (user?.primaryEmailAddress?.emailAddress) {
             fetchCredits();
         }
     }, [user]);
+
+    // Handle return from Stripe checkout
+    useEffect(() => {
+        const isSuccess = searchParams.get("success");
+        const sessionId = searchParams.get("session_id");
+        const isCanceled = searchParams.get("canceled");
+
+        if (isCanceled) {
+            toast("Payment was cancelled", { icon: "ℹ️" });
+            router.replace("/dashboard/upgrade");
+            return;
+        }
+
+        if (isSuccess && sessionId && !processedSessionRef.current) {
+            processedSessionRef.current = true;
+            verifyStripePayment(sessionId);
+        }
+    }, [searchParams]);
+
+    const verifyStripePayment = async (sessionId) => {
+        try {
+            const res = await axios.post("/api/payment/verify", { sessionId });
+            if (res.data?.success) {
+                toast.success("🎉 Payment successful! Credits added to your account!");
+                if (res.data.credits !== undefined) {
+                    setCurrentCredits(res.data.credits);
+                } else {
+                    fetchCredits();
+                }
+            }
+        } catch (error) {
+            console.error("Failed to verify Stripe payment:", error);
+            toast.error("Could not verify payment automatically. Please refresh or contact support.");
+        } finally {
+            router.replace("/dashboard/upgrade");
+        }
+    };
 
     const fetchCredits = async () => {
         try {
@@ -94,66 +133,20 @@ export default function UpgradePage() {
             return;
         }
 
-        // If Razorpay isn't configured, show a friendly message
-        if (!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
-            toast("Payments coming soon! Credits will be available shortly.", { icon: "🚀" });
-            return;
-        }
-
         setLoadingPlan(plan.id);
 
         try {
-            // 1. Create Razorpay order
             const { data } = await axios.post("/api/payment/create-order", {
                 planId: plan.id,
                 email: user.primaryEmailAddress.emailAddress,
             });
 
-            // 2. Load Razorpay checkout script
-            await loadRazorpayScript();
-
-            // 3. Open Razorpay checkout
-            const options = {
-                key: data.keyId,
-                amount: data.amount,
-                currency: data.currency,
-                name: "IntelliPrep",
-                description: `${plan.name} Plan — ${plan.credits} Credits`,
-                order_id: data.orderId,
-                prefill: {
-                    name: user.fullName || "",
-                    email: user.primaryEmailAddress.emailAddress,
-                },
-                theme: { color: "#2563EB" },
-                handler: async (response) => {
-                    // 4. Verify payment on server
-                    try {
-                        const verify = await axios.post("/api/payment/verify", {
-                            razorpay_order_id:   response.razorpay_order_id,
-                            razorpay_payment_id: response.razorpay_payment_id,
-                            razorpay_signature:  response.razorpay_signature,
-                            email:   user.primaryEmailAddress.emailAddress,
-                            credits: plan.credits,
-                        });
-
-                        if (verify.data.success) {
-                            toast.success(`🎉 ${plan.credits} credits added to your account!`);
-                            setCurrentCredits(verify.data.credits);
-                        }
-                    } catch (err) {
-                        toast.error("Payment verification failed. Contact support.");
-                        console.error("Verify error:", err);
-                    }
-                },
-                modal: {
-                    ondismiss: () => {
-                        toast("Payment cancelled", { icon: "ℹ️" });
-                    },
-                },
-            };
-
-            const rzp = new window.Razorpay(options);
-            rzp.open();
+            if (data?.url) {
+                // Redirect user to Stripe Checkout hosted page
+                window.location.href = data.url;
+            } else {
+                toast.error("Failed to initiate checkout session");
+            }
         } catch (err) {
             console.error("Payment error:", err);
             toast.error(err?.response?.data?.error || "Failed to initiate payment");
@@ -161,6 +154,8 @@ export default function UpgradePage() {
             setLoadingPlan(null);
         }
     };
+
+    const isStripeConfigured = Boolean(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 
     return (
         <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -191,12 +186,12 @@ export default function UpgradePage() {
                         )}
                     </div>
 
-                    {/* Coming soon banner when Razorpay not configured */}
-                    {!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID && (
+                    {!isStripeConfigured && (
                         <div className="mt-6 bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-center text-amber-800 text-sm font-medium">
                             🚀 Payments are coming soon — plans are shown for preview only.
                         </div>
-                    )}                </div>
+                    )}
+                </div>
 
                 {/* Plans */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -265,20 +260,17 @@ export default function UpgradePage() {
 
                 {/* Security note */}
                 <p className="text-center text-xs text-gray-400 mt-8">
-                    🔒 Payments are securely processed by Razorpay. We never store your card details.
+                    🔒 Payments are securely processed by Stripe. We never store your card details.
                 </p>
             </div>
         </div>
     );
 }
 
-// Dynamically loads the Razorpay checkout script
-function loadRazorpayScript() {
-    return new Promise((resolve) => {
-        if (window.Razorpay) return resolve();
-        const script = document.createElement("script");
-        script.src = "https://checkout.razorpay.com/v1/checkout.js";
-        script.onload = resolve;
-        document.body.appendChild(script);
-    });
+export default function UpgradePage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-500">Loading...</div>}>
+            <UpgradeContent />
+        </Suspense>
+    );
 }

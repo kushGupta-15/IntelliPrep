@@ -5,6 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '../../../../components/ui/button';
 import { ChevronLeft, ChevronRight, ArrowLeft, BookOpen, CheckCircle } from 'lucide-react';
+import DOMPurify from 'isomorphic-dompurify';
 
 function ViewNotes() {
   const { courseId } = useParams();
@@ -118,7 +119,7 @@ function ViewNotes() {
                 prose-code:bg-gray-100 prose-code:text-blue-700 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm
                 prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-pre:rounded-xl prose-pre:overflow-x-auto
               "
-              dangerouslySetInnerHTML={{ __html: notes[stepCount]?.notes }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(notes[stepCount]?.notes || '') }}
             />
           </div>
         </div>

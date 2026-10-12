@@ -1,27 +1,44 @@
 import { NextResponse } from 'next/server';
-import  db  from '../../../configs/db';
-import { CHAPTER_NOTES_TABLE, STUDY_TYPE_CONTENT_TABLE } from '../../../configs/schema';
-import {  eq,and } from "drizzle-orm"; 
+import db from '../../../configs/db';
+import { CHAPTER_NOTES_TABLE, STUDY_MATERIAL_TABLE, STUDY_TYPE_CONTENT_TABLE } from '../../../configs/schema';
+import { eq, and } from "drizzle-orm"; 
+import { getAuthenticatedUser, unauthorizedResponse, forbiddenResponse } from '../../../lib/auth';
 
 export async function POST(req) {
     try {
+        const user = await getAuthenticatedUser();
+        if (!user || !user.email) {
+            return unauthorizedResponse();
+        }
+
         const { courseId, studyType } = await req.json();
         
         if (!courseId) {
             return NextResponse.json({ error: "courseId is required" }, { status: 400 });
         }
 
+        // Verify ownership: ensure course belongs to the authenticated user
+        const course = await db
+            .select({ id: STUDY_MATERIAL_TABLE.id, createdBy: STUDY_MATERIAL_TABLE.createdBy })
+            .from(STUDY_MATERIAL_TABLE)
+            .where(eq(STUDY_MATERIAL_TABLE.courseId, courseId));
+
+        if (!course[0]) {
+            return NextResponse.json({ error: "Course not found" }, { status: 404 });
+        }
+
+        if (course[0].createdBy !== user.email) {
+            console.warn(`⛔ [study-type] IDOR attempt: ${user.email} tried to access course ${courseId} owned by ${course[0].createdBy}`);
+            return forbiddenResponse();
+        }
+
         if (studyType === 'ALL') {
             const notes = await db.select().from(CHAPTER_NOTES_TABLE).where(eq(CHAPTER_NOTES_TABLE.courseId, courseId));
             
-            const contentList = await db.select().from(STUDY_TYPE_CONTENT_TABLE).where(eq(STUDY_TYPE_CONTENT_TABLE?.courseId,courseId))
+            const contentList = await db.select().from(STUDY_TYPE_CONTENT_TABLE).where(eq(STUDY_TYPE_CONTENT_TABLE?.courseId, courseId));
             const flashCard = contentList?.find((item) => item.type === "Flashcard");
             const quiz = contentList?.find((item) => item.type === "Quiz");
-            const qa = contentList?.find((item) => item.type === "qa")
-            
-            console.log("contentListhello",flashCard);
-            console.log("quiz",quiz);
-            console.log("qa",qa);
+            const qa = contentList?.find((item) => item.type === "qa");
 
             return NextResponse.json({
               result: {
@@ -44,23 +61,21 @@ export async function POST(req) {
               },
             });
         }
-        else if(studyType==="notes"){
+        else if (studyType === "notes") {
             const notes = await db.select().from(CHAPTER_NOTES_TABLE).where(eq(CHAPTER_NOTES_TABLE.courseId, courseId));
             return NextResponse.json(notes);
         }
-        else{
-            
-            const flashcards = await db.select().from(STUDY_TYPE_CONTENT_TABLE).where(and(eq(STUDY_TYPE_CONTENT_TABLE.courseId, courseId), eq(STUDY_TYPE_CONTENT_TABLE.type, studyType)));
+        else {
+            const flashcards = await db
+                .select()
+                .from(STUDY_TYPE_CONTENT_TABLE)
+                .where(and(eq(STUDY_TYPE_CONTENT_TABLE.courseId, courseId), eq(STUDY_TYPE_CONTENT_TABLE.type, studyType)));
 
-            console.log("flashcards", flashcards);
-            console.log("Returning flashcard[0]:", flashcards);
-
-            return NextResponse.json(flashcards[0]);
+            return NextResponse.json(flashcards[0] || null);
         }
-        // return NextResponse.json({ error: "Invalid studyType" }, { status: 400 });
 
     } catch (error) {
         console.error("Error fetching study material:", error);
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: "Internal Server Error", details: error.message }, { status: 500 });
     }
 }

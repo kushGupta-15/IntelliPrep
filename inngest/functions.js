@@ -1,5 +1,4 @@
-import { GenerateQuizAiModel, generateStudyTypeContent } from "../configs/AiModel";
-import { generateNotesAiModel } from "../configs/AiModel"; // Use OpenAI-based notes generator
+import { GenerateQuizAiModel, generateStudyTypeContent, generateNotesAiModel } from "../configs/AiModel";
 import { inngest } from "./client";
 import  db  from "../configs/db";
 import { CHAPTER_NOTES_TABLE, STUDY_MATERIAL_TABLE, STUDY_TYPE_CONTENT_TABLE, USER_TABLE } from '../configs/schema';
@@ -142,9 +141,8 @@ Return only HTML content, nothing else.
               } catch (retryErr) {
                 const is429 = retryErr?.status === 429 || retryErr?.message?.includes("429");
                 if (is429 && attempt < 3) {
-                  // Parse wait time from Groq error message, default to 15s
                   const waitMatch = retryErr.message?.match(/try again in ([\d.]+)s/i);
-                  const waitSeconds = waitMatch ? Math.ceil(parseFloat(waitMatch[1])) + 2 : 15;
+                  const waitSeconds = waitMatch ? Math.ceil(parseFloat(waitMatch[1])) + 2 : 5;
                   console.warn(`⏳ [GenerateNotes] Rate limited on chapter ${index + 1}, attempt ${attempt}/3. Waiting ${waitSeconds}s...`);
                   await new Promise(resolve => setTimeout(resolve, waitSeconds * 1000));
                 } else {
@@ -171,10 +169,10 @@ Return only HTML content, nothing else.
           const chapterDuration = ((Date.now() - chapterStart) / 1000).toFixed(2);
           console.log(`⏱️  [GenerateNotes] Chapter ${index + 1} total time: ${chapterDuration}s`);
 
-          // Small pause between chapters to stay within Groq's 12k TPM free tier limit
+          // Brief pause between chapters
           if (index < Chapters.length - 1) {
-            console.log(`😴 [GenerateNotes] Waiting 8s before next chapter to avoid rate limits...`);
-            await new Promise(resolve => setTimeout(resolve, 8000));
+            console.log(`😴 [GenerateNotes] Waiting 1s before next chapter...`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
           }
         }
         return "Completed";

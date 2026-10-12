@@ -1,20 +1,22 @@
-import  db  from "../../../configs/db";
-import { desc, eq } from "drizzle-orm"; 
+import db from "../../../configs/db";
+import { desc, eq, and } from "drizzle-orm"; 
 import { NextResponse } from "next/server";
 import { STUDY_MATERIAL_TABLE } from "../../../configs/schema";
+import { getAuthenticatedUser, unauthorizedResponse, forbiddenResponse } from "../../../lib/auth";
 
 export async function POST(req) {
     try {
-        const { createdBy } = await req.json();
-        
-        if (!createdBy) {
-            return NextResponse.json({ error: "Missing createdBy field" }, { status: 400 });
+        const user = await getAuthenticatedUser();
+        if (!user || !user.email) {
+            return unauthorizedResponse();
         }
 
+        // Server-enforced identity: only fetch courses for the authenticated user
         const result = await db
             .select()
             .from(STUDY_MATERIAL_TABLE)
-            .where(eq(STUDY_MATERIAL_TABLE.createdBy, createdBy)).orderBy(desc(STUDY_MATERIAL_TABLE.id));
+            .where(eq(STUDY_MATERIAL_TABLE.createdBy, user.email))
+            .orderBy(desc(STUDY_MATERIAL_TABLE.id));
 
         const parsedResult = result.map(course => {
             if (typeof course.courseLayout === 'string') {
@@ -36,21 +38,34 @@ export async function POST(req) {
 
 export async function GET(req) {
     try {
-        const reqURL = req.url;
-        const {searchParams} = new URL(reqURL);
-        const courseId  = searchParams?.get('courseId');
+        const user = await getAuthenticatedUser();
+        if (!user || !user.email) {
+            return unauthorizedResponse();
+        }
+
+        const { searchParams } = new URL(req.url);
+        const courseId = searchParams?.get('courseId');
 
         if (!courseId) {
             return NextResponse.json({ error: "Missing courseId parameter" }, { status: 400 });
         }
 
-        console.log("[GET /api/courses] Fetching courseId:", courseId);
+        console.log(`[GET /api/courses] Fetching courseId: ${courseId} for user: ${user.email}`);
 
-        const course = await db.select().from(STUDY_MATERIAL_TABLE).where(eq(STUDY_MATERIAL_TABLE?.courseId,courseId));
+        const course = await db
+            .select()
+            .from(STUDY_MATERIAL_TABLE)
+            .where(eq(STUDY_MATERIAL_TABLE.courseId, courseId));
 
         if (!course[0]) {
             console.warn("[GET /api/courses] Course not found:", courseId);
             return NextResponse.json({ error: "Course not found" }, { status: 404 });
+        }
+
+        // Enforce ownership: user can only view their own courses
+        if (course[0].createdBy !== user.email) {
+            console.warn(`⛔ [GET /api/courses] IDOR attempt: ${user.email} tried to access course ${courseId} owned by ${course[0].createdBy}`);
+            return forbiddenResponse();
         }
 
         if (typeof course[0].courseLayout === 'string') {
@@ -61,8 +76,7 @@ export async function GET(req) {
             }
         }
 
-        console.log("[GET /api/courses] Found course, status:", course[0].status);
-        return NextResponse.json({result : course[0]});
+        return NextResponse.json({ result: course[0] });
     } catch (error) {
         console.error("[GET /api/courses] Database Error:", error);
         return NextResponse.json({ error: "Internal Server Error", details: error.message }, { status: 500 });

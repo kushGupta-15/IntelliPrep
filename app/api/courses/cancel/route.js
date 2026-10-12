@@ -2,16 +2,22 @@ import { NextResponse } from "next/server";
 import db from "../../../../configs/db";
 import { STUDY_MATERIAL_TABLE, CHAPTER_NOTES_TABLE } from "../../../../configs/schema";
 import { eq } from "drizzle-orm";
+import { getAuthenticatedUser, unauthorizedResponse, forbiddenResponse } from "../../../../lib/auth";
 
 export async function POST(req) {
     try {
+        const user = await getAuthenticatedUser();
+        if (!user || !user.email) {
+            return unauthorizedResponse();
+        }
+
         const { courseId } = await req.json();
 
         if (!courseId) {
             return NextResponse.json({ error: "courseId is required" }, { status: 400 });
         }
 
-        console.log("🛑 [cancel] Cancelling course generation:", courseId);
+        console.log(`🛑 [cancel] User ${user.email} cancelling course generation: ${courseId}`);
 
         const existing = await db
             .select()
@@ -22,6 +28,12 @@ export async function POST(req) {
             return NextResponse.json({ error: "Course not found" }, { status: 404 });
         }
 
+        // Ownership check
+        if (existing[0].createdBy !== user.email) {
+            console.warn(`⛔ [cancel] IDOR attempt: ${user.email} tried to cancel course ${courseId} owned by ${existing[0].createdBy}`);
+            return forbiddenResponse();
+        }
+
         if (existing[0].status !== "Generating") {
             return NextResponse.json(
                 { error: `Course is not generating (current status: ${existing[0].status})` },
@@ -29,7 +41,7 @@ export async function POST(req) {
             );
         }
 
-        // Mark as Cancelled — the Inngest function checks this before each chapter
+        // Mark as Cancelled — the Inngest / worker checks this before each chapter
         await db
             .update(STUDY_MATERIAL_TABLE)
             .set({ status: "Cancelled" })

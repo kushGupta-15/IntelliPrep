@@ -62,12 +62,9 @@ function Create() {
             await axios.post('/api/generate-course-outline', {
                 courseId,
                 ...formData,
-                createdBy: user?.primaryEmailAddress?.emailAddress,
             });
-            // Deduct 1 credit
-            await axios.post('/api/user/deduct-credit', {
-                email: user?.primaryEmailAddress?.emailAddress,
-            });
+            // Update local credit count after successful server deduction
+            setCredits(prev => (prev !== null ? Math.max(0, prev - 1) : null));
             toast.success("Course created! It will appear on your dashboard shortly.");
             setCourseCreated(true);
             setStatusMessage('Your course has been generated successfully.');

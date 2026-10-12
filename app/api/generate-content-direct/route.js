@@ -1,20 +1,46 @@
 import { NextResponse } from "next/server";
 import { generateStudyTypeContent, GenerateQuizAiModel } from "../../../configs/AiModel";
-import { STUDY_TYPE_CONTENT_TABLE } from "../../../configs/schema";
+import { STUDY_TYPE_CONTENT_TABLE, STUDY_MATERIAL_TABLE } from "../../../configs/schema";
 import db from "../../../configs/db";
 import { eq } from "drizzle-orm";
+import { getAuthenticatedUser, unauthorizedResponse, forbiddenResponse } from "../../../lib/auth";
 
 export async function POST(req) {
     try {
+        const user = await getAuthenticatedUser();
+        if (!user || !user.email) {
+            return unauthorizedResponse();
+        }
+
         const { recordId, studyType, prompt } = await req.json();
         
-        console.log("[Direct] Starting direct content generation");
-        console.log("[Direct] Parameters:", { recordId, studyType, prompt });
+        console.log("[Direct] Starting direct content generation for user:", user.email);
 
         if (!recordId || !studyType || !prompt) {
             return NextResponse.json({ 
                 error: "Missing required parameters: recordId, studyType, prompt" 
             }, { status: 400 });
+        }
+
+        // Verify that record exists
+        const record = await db
+            .select()
+            .from(STUDY_TYPE_CONTENT_TABLE)
+            .where(eq(STUDY_TYPE_CONTENT_TABLE.id, recordId));
+
+        if (!record[0]) {
+            return NextResponse.json({ error: "Record not found" }, { status: 404 });
+        }
+
+        // Verify that user owns the parent course
+        const course = await db
+            .select({ createdBy: STUDY_MATERIAL_TABLE.createdBy })
+            .from(STUDY_MATERIAL_TABLE)
+            .where(eq(STUDY_MATERIAL_TABLE.courseId, record[0].courseId));
+
+        if (!course[0] || course[0].createdBy !== user.email) {
+            console.warn(`⛔ [Direct] IDOR attempt: ${user.email} tried to generate content for course owned by ${course[0]?.createdBy}`);
+            return forbiddenResponse();
         }
 
         console.log("[Direct] Calling AI model...");
@@ -30,30 +56,22 @@ export async function POST(req) {
             .replace(/```$/i, "")
             .trim();
 
-        console.log("[Direct] Raw AI Response:", aiResponseText);
-        
         let AIResult;
         try {
             AIResult = JSON.parse(aiResponseText);
-            console.log("[Direct] AI Response parsed successfully");
         } catch (parseError) {
             console.error("[Direct] JSON Parse Error:", parseError);
             throw new Error(`Failed to parse AI response as JSON: ${parseError.message}`);
         }
 
-        console.log("[Direct] Updating database...");
         const updateResult = await db.update(STUDY_TYPE_CONTENT_TABLE).set({
             content: AIResult,
             status: "Ready"
         }).where(eq(STUDY_TYPE_CONTENT_TABLE.id, recordId));
 
-        console.log("[Direct] Database update result:", updateResult);
-
         const verifyResult = await db.select().from(STUDY_TYPE_CONTENT_TABLE).where(eq(STUDY_TYPE_CONTENT_TABLE.id, recordId));
-        console.log("[Direct] Verification - Updated record:", verifyResult[0]);
 
         if (verifyResult[0] && verifyResult[0].status === "Ready") {
-            console.log("[Direct] Content generation completed successfully!");
             return NextResponse.json({
                 success: true,
                 message: "Content generated successfully",

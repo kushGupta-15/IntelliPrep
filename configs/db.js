@@ -1,7 +1,7 @@
 import { drizzle as drizzlePostgres } from 'drizzle-orm/neon-serverless';
 import { Pool } from '@neondatabase/serverless';
-import { drizzle as drizzleSqlite } from 'drizzle-orm/better-sqlite3';
-import Database from 'better-sqlite3';
+import { drizzle as drizzleSqlite } from 'drizzle-orm/libsql';
+import { createClient } from '@libsql/client';
 import { join } from 'path';
 
 const connectionString = process.env.NEXT_PUBLIC_DATABASE_CONNECTION_STRING;
@@ -10,10 +10,11 @@ const sqlitePath = process.env.LOCAL_SQLITE_PATH || './dev.sqlite';
 
 function createSqliteDb() {
   const sqliteFile = join(process.cwd(), sqlitePath);
-  const sqliteClient = new Database(sqliteFile);
-  const db = drizzleSqlite(sqliteClient);
+  const client = createClient({ url: `file:${sqliteFile}` });
+  const db = drizzleSqlite(client);
 
-  sqliteClient.exec(`
+  // Initialize SQLite tables if they do not exist
+  client.executeMultiple(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -21,9 +22,6 @@ function createSqliteDb() {
       isMember INTEGER DEFAULT 0,
       credits INTEGER DEFAULT 5
     );
-  `);
-
-  sqliteClient.exec(`
     CREATE TABLE IF NOT EXISTS studyMaterial (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       courseId TEXT NOT NULL,
@@ -34,18 +32,12 @@ function createSqliteDb() {
       createdBy TEXT NOT NULL,
       status TEXT DEFAULT 'Generating'
     );
-  `);
-
-  sqliteClient.exec(`
     CREATE TABLE IF NOT EXISTS ChapterNotes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       courseId TEXT NOT NULL,
       chapterId INTEGER NOT NULL,
       notes TEXT
     );
-  `);
-
-  sqliteClient.exec(`
     CREATE TABLE IF NOT EXISTS studyTypeContent (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       courseId TEXT NOT NULL,
@@ -53,7 +45,10 @@ function createSqliteDb() {
       type TEXT NOT NULL,
       status TEXT DEFAULT 'Generating'
     );
-  `);
+  `).catch((err) => {
+    // Non-fatal if tables already exist or in-flight
+    console.debug('SQLite table init info:', err?.message);
+  });
 
   return db;
 }
@@ -77,4 +72,3 @@ if (useLocalSqlite) {
 }
 
 export default db;
-

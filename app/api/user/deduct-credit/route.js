@@ -2,13 +2,21 @@ import { NextResponse } from "next/server";
 import db from "../../../../configs/db";
 import { USER_TABLE } from "../../../../configs/schema";
 import { eq, sql } from "drizzle-orm";
+import { getAuthenticatedUser, unauthorizedResponse, forbiddenResponse } from "../../../../lib/auth";
 
 export async function POST(req) {
     try {
-        const { email } = await req.json();
+        const authUser = await getAuthenticatedUser();
+        if (!authUser || !authUser.email) {
+            return unauthorizedResponse();
+        }
 
-        if (!email) {
-            return NextResponse.json({ error: "email is required" }, { status: 400 });
+        const body = await req.json().catch(() => ({}));
+        const email = authUser.email; // Derive directly from authenticated session
+
+        if (body.email && body.email !== email) {
+            console.warn(`⛔ [credits] Unauthorized credit drain attempt: ${authUser.email} tried to deduct for ${body.email}`);
+            return forbiddenResponse();
         }
 
         // Check current credits first

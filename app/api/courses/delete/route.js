@@ -2,16 +2,22 @@ import { NextResponse } from "next/server";
 import db from "../../../../configs/db";
 import { STUDY_MATERIAL_TABLE, CHAPTER_NOTES_TABLE, STUDY_TYPE_CONTENT_TABLE } from "../../../../configs/schema";
 import { eq } from "drizzle-orm";
+import { getAuthenticatedUser, unauthorizedResponse, forbiddenResponse } from "../../../../lib/auth";
 
 export async function DELETE(req) {
     try {
+        const user = await getAuthenticatedUser();
+        if (!user || !user.email) {
+            return unauthorizedResponse();
+        }
+
         const { courseId } = await req.json();
         
         if (!courseId) {
             return NextResponse.json({ error: "courseId is required" }, { status: 400 });
         }
 
-        console.log("🗑️ Deleting course:", courseId);
+        console.log(`🗑️ [delete] User ${user.email} deleting course: ${courseId}`);
 
         const existingCourse = await db
             .select()
@@ -22,9 +28,15 @@ export async function DELETE(req) {
             return NextResponse.json({ error: "Course not found" }, { status: 404 });
         }
 
+        // Enforce ownership: only the creator can delete their course
+        if (existingCourse[0].createdBy !== user.email) {
+            console.warn(`⛔ [delete] IDOR attempt: ${user.email} tried to delete course ${courseId} owned by ${existingCourse[0].createdBy}`);
+            return forbiddenResponse();
+        }
+
         if (existingCourse[0].status === "Generating") {
             return NextResponse.json({ 
-                error: "Cannot delete course while it's still generating. Stop the generation first." 
+                error: "Cannot delete course while it's still generating. Cancel the generation first." 
             }, { status: 400 });
         }        
 
@@ -32,15 +44,11 @@ export async function DELETE(req) {
             .delete(CHAPTER_NOTES_TABLE)
             .where(eq(CHAPTER_NOTES_TABLE.courseId, courseId))
             .returning({ id: CHAPTER_NOTES_TABLE.id });
-        
-        console.log("Deleted chapter notes:", deletedNotes.length);
 
         const deletedContent = await db
             .delete(STUDY_TYPE_CONTENT_TABLE)
             .where(eq(STUDY_TYPE_CONTENT_TABLE.courseId, courseId))
             .returning({ id: STUDY_TYPE_CONTENT_TABLE.id });
-        
-        console.log("Deleted study content:", deletedContent.length);
 
         const deletedCourse = await db
             .delete(STUDY_MATERIAL_TABLE)
@@ -50,7 +58,7 @@ export async function DELETE(req) {
                 topic: STUDY_MATERIAL_TABLE.topic 
             });
 
-        console.log("Successfully deleted course:", deletedCourse[0]);
+        console.log("Successfully deleted course:", deletedCourse[0]?.id);
 
         return NextResponse.json({ 
             success: true,
