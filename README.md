@@ -140,6 +140,90 @@ graph TD
 
 ---
 
+## 📸 Visual Overview & Interface Tour
+
+Experience the complete end-to-end IntelliPrep learning journey across each core interface:
+
+### 1. Landing Page & Platform Value Proposition
+![Landing Page Hero](docs/screenshots/01-landing-hero.png)
+- **Fluid Hero Architecture**: Mobile-first responsive header, animated value proposition pill, and high-impact headline with gradient accents.
+- **Conversion Pathways**: Instant access to the dashboard for returning students and a one-click demo preview.
+- **Visual Design**: High contrast typography, Framer Motion entrance transitions, and balanced whitespace.
+
+---
+
+### 2. Academic Dashboard & Course Library
+![Academic Dashboard](docs/screenshots/02-dashboard-overview.png)
+- **Personalized Academic Hub**: Dynamic greeting banner reflecting the authenticated user's name and learning prompts.
+- **Course Library Search & Multi-Filters**: Instant client-side search across titles/topics, with multi-axis filtering by Study Type (Exam, Job Interview, Practice, Coding Prep), Generation Status (Ready, Generating, Cancelled), and Difficulty.
+- **Real-Time Credit Tracking**: Sticky sidebar navigation with persistent credit balance indicators, usage progress bars, and instant upgrade triggers.
+
+---
+
+### 3. Course Creation Studio
+![Course Creation Studio](docs/screenshots/03-course-studio.png)
+- **Step-by-Step Guided Setup**: Visual category radio selection cards (Exam, Job Interview, Practice, Coding Prep, Other) with WCAG-compliant keyboard focus rings.
+- **Custom Topic Prompting**: Flexible multiline input supporting topic names, full syllabi, or raw lecture notes.
+- **Difficulty Calibration**: Adaptive difficulty selector (Easy, Moderate, Hard) tuning Gemini prompt parameters before generation dispatch.
+
+---
+
+### 4. Course Curriculum Hub
+![Course Curriculum Hub](docs/screenshots/04-course-hub.png)
+- **Curriculum Metadata Header**: Displays topic title, target preparation category, difficulty tier, and total chapter count with a public share trigger.
+- **Quick-Access Launch Grid**: 4 dedicated action panels launching Chapter Notes, Spaced Repetition Flashcards, Assessment Quiz, and the AI Academic Tutor.
+- **Structured Syllabus Tree**: Interactive chapter breakdown displaying individual chapter milestones, core conceptual tags, and progress indicators.
+
+---
+
+### 5. Interactive Chapter Notes & Audio Narration
+![Interactive Chapter Notes](docs/screenshots/05-chapter-notes.png)
+- **Semantic HTML Reader**: Typography-optimized prose container with syntax-highlighted code blocks, tables, and structured callouts.
+- **Built-in TTS Narration Player**: Web Speech API audio narration with Play/Pause/Resume states and dynamic speed modulation ($1\times$, $1.25\times$, $1.5\times$).
+- **Inline Editing & Print/PDF Export**: In-app edit mode with live preview tab, and print-optimized stylesheet for offline physical study or PDF export.
+
+---
+
+### 6. Grounded AI Academic Tutor Drawer
+![AI Academic Tutor Drawer](docs/screenshots/06-ai-tutor-drawer.png)
+- **Context-Grounded Dialogue**: Slide-over academic tutor powered by Google Gemini 3.5 Flash Lite, grounded strictly in the active chapter notes.
+- **One-Click Prompt Chips**: Instant accelerators for real-world analogies, concrete coding examples, key takeaway bullet points, and conceptual practice quizzes.
+- **Zero-Friction UX**: Non-blocking slide-out drawer with backdrop blur, keyboard shortcuts, and auto-scrolling chat history.
+
+---
+
+### 7. Spaced Repetition (SRS) Flashcards Studio
+![Spaced Repetition Flashcards](docs/screenshots/07-srs-flashcards.png)
+- **3D Card Flip Mechanics**: Interactive CSS 3D transform cards with question on the front and detailed answer explanation on the back.
+- **4-Tier Leitner Confidence Grading**: Research-backed retention grading (`Again`, `Hard`, `Good`, `Easy`) updating spaced repetition schedules.
+- **Deck Mastery Analytics & Anki Export**: Visual deck mastery percentage, filterable tabs (All, To Review, Mastered), and `.apkg` export for desktop and mobile Anki sync.
+
+---
+
+### 8. Self-Grading Assessment Quiz & Mistake Review
+![Assessment Quiz](docs/screenshots/08-quiz-assessment.png)
+- **Interactive Question Runner**: Step-by-step multiple-choice quiz engine with accessible radio option selectors and progress bar tracking.
+- **Instant Mistake Analysis**: Visual color-coded validation highlighting correct and chosen options with detailed explanatory rationales.
+- **Historical Score Logging**: Automatically persists score attempts and answer breakdowns to `quizAttempts` in Neon PostgreSQL for longitudinal progress tracking.
+
+---
+
+### 9. Public Study Portal & Sharing
+![Public Shared Course](docs/screenshots/09-public-shared-course.png)
+- **Frictionless Public Access**: Unauthenticated public route (`/share/[courseId]`) enabling students to share full curriculum notes, flashcards, and quizzes with peers.
+- **Multi-Tab Preview Engine**: Switch between chapter notes, interactive flashcards, and practice quizzes without requiring a sign-in.
+- **Viral Growth CTA**: Embedded "Create Your Own" and "Fork Deck" actions seamlessly onboarding new learners to the platform.
+
+---
+
+### 10. Academic Pricing & Credit Upgrades
+![Pricing and Billing](docs/screenshots/10-billing-upgrade.png)
+- **Transparent Credit Tier Matrix**: Tiered credit bundles (Basic, Pro with Most Popular pill, and Premium) with lifetime validity guarantees.
+- **Stripe Checkout Integration**: PCI-compliant payment triggers initiating secure Stripe Checkout sessions with verified webhook fulfillment.
+- **Security & Trust Badging**: Real-time SSL encryption indicators and Stripe guarantee assurances.
+
+---
+
 ## 🌟 Comprehensive Features Matrix
 
 ### 1. Intelligent Course Studio
@@ -333,6 +417,12 @@ IntelliPrep/
 │   ├── auth.js                                   # Server authentication & IDOR helpers
 │   ├── rateLimit.js                              # Sliding-window rate limiter
 │   └── utils.js                                  # Class variance & tailwind merge utilities
+├── docs/
+│   └── screenshots/                              # High-resolution 1920x1080 full-viewport interface captures
+├── scripts/
+│   ├── capture-screenshots.mjs                   # Automated Puppeteer crawler & snapshot orchestrator
+│   ├── migrate-phase2.mjs                        # Production database index migration
+│   └── migrate-phase3.mjs                        # Phase 3 schema extensions migration
 ├── middleware.js                                 # Edge security, rate limiting & Clerk guard
 ├── drizzle.config.js                             # Drizzle kit configuration
 └── tailwind.config.mjs                           # Tailwind theme tokens & color variables
